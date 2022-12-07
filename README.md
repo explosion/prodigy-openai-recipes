@@ -2,19 +2,19 @@
 
 An internal repo to share code for OpenAI recipes.
 
+Before running any demos, you need to make sure that the `.env` file contains the right keys. 
+
+```
+OPENAI_ORG = "org-..."
+OPENAI_KEY = "sk-..."
+```
+
 ## Running the NER demo. 
 
 First make sure the non-Prodigy dependencies are installed. 
 
 ```
 python -m pip install ner-requirements.txt
-```
-
-Then you need to make sure that the `.env` file contains the right keys. 
-
-```
-OPENAI_ORG = "org-..."
-OPENAI_KEY = "sk-..."
 ```
 
 Then you can run the experiment via: 
@@ -47,4 +47,42 @@ If you'd like to understand the prompts and reponses, feel free to use the `--ve
 │ Place: Haarlem                                                         │
 │ Company:                                                               │
 ╰────────────────────────────────────────────────────────────────────────╯
+```
+
+## Running the Textcat Demo 
+
+First make sure the non-Prodigy dependencies are installed. 
+
+```
+python -m pip install ner-requirements.txt
+```
+
+Then you can run the experiment via: 
+
+```
+python -m prodigy textcat.openai.correct openai-textcat-demo textcat-examples.jsonl en -l positive,negative,neutral -F openai-textcat.py
+```
+
+If you'd like to understand the prompts and reponses, feel free to use the `--verbose` flag. It'll give extra output that looks like below: 
+
+```
+╭──────────────────────────────── Prompt to OpenAI ─────────────────────────────────╮
+│ From the text below, tell me which class describes it best. From the following    │
+│ list:                                                                             │
+│ - positive                                                                        │
+│ - negative                                                                        │
+│ - neutral                                                                         │
+│                                                                                   │
+│ Text:                                                                             │
+│ """                                                                               │
+│ Oh no!                                                                            │
+│ """                                                                               │
+│                                                                                   │
+│ Answer:                                                                           │
+│                                                                                   │
+╰───────────────────────────────────────────────────────────────────────────────────╯
+╭────────────────────────────── Response from OpenAI ───────────────────────────────╮
+│                                                                                   │
+│ negative                                                                          │
+╰───────────────────────────────────────────────────────────────────────────────────╯
 ```
