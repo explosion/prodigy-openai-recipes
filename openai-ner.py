@@ -107,11 +107,15 @@ def _find_substrings(text: str, substrings: List[str]) -> List[Tuple[int, int]]:
     """Given a list of substrings, find their character start and end positions in a text. The substrings are assumed to be sorted by the order of their occurrence in the text.
     """
     offsets = []
-    start = 0
+    search_from = 0
     for substring in substrings:
-        index = text.find(substring, start)
-        if index != -1:
-            offsets.append((index, index + len(substring)))
+        # Find from an offset, to handle phrases that
+        # occur multiple times in the text.
+        start = text.find(substring, search_from)
+        if start != -1:
+            end = start + len(substring)
+            offsets.append((start, end))
+            search_from = end
     return offsets
 
 
