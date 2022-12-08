@@ -192,7 +192,3 @@ def main(filepath_in, filepath_out, lang, labels, n_examples=200, verbose=False,
                 examples.append(r)
 
     srsly.write_jsonl(filepath_out, examples, append=True, append_new_line=False)
-
-
-if __name__ == "__main__":
-    main("fashion_brands_training.jsonl", "prompts.jsonl", 15)
