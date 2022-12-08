@@ -46,7 +46,7 @@ def make_candidate(example, model, nlp, labels, verbose=True):
     spans = []
     doc = nlp(example["text"])
     for line in entity_lines:
-        label_name, ents = line.split(":")
+        label_name, ents = line.split(":", 1)
         processor = KeywordProcessor()
         for ent in ents.split(","):
             processor.add_keyword(ent.strip())
