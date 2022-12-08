@@ -2,6 +2,8 @@
 
 An internal repo to share code for OpenAI recipes.
 
+![](image.png)
+
 ## Setup and Install 
 
 Before running any demos, you need to make sure that the `.env` file contains the right keys. 

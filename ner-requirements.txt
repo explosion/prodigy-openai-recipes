@@ -1,4 +1,0 @@
-rich==12.6.0
-flashtext==2.7
-python-dotenv==0.21.0
-openai==0.25.0
