@@ -106,6 +106,10 @@ def _parse_response(text: str) -> List[Tuple[str, List[str]]]:
 def _find_substrings(text: str, substrings: List[str]) -> List[Tuple[int, int]]:
     """Given a list of substrings, find their character start and end positions in a text. The substrings are assumed to be sorted by the order of their occurrence in the text.
     """
+    # Sometimes the first substring is title-cased.
+    # If it is, and it's not in the text titled, fix it.
+    if substrings and substrings[0] not in text:
+        substrings[0] = substrings[0].lower()
     offsets = []
     search_from = 0
     for substring in substrings:
