@@ -123,6 +123,44 @@ def _find_substrings(text: str, substrings: List[str]) -> List[Tuple[int, int]]:
     return offsets
 
 
+def make_candidate(example, model, nlp, labels, verbose=True):
+    prompt = generate_prompt(labels=labels, sentence=example["text"], verbose=verbose)
+    response = openai.Completion.create(
+        model=model,
+        prompt=prompt,
+        temperature=0,
+        max_tokens=64,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+    )
+    resp_text = response["choices"][0]["text"]
+    if verbose:
+        print(Panel(resp_text, title="Response from OpenAI"))
+    entity_lines = resp_text.split("\n")
+    spans = []
+    doc = nlp(example["text"])
+    for line in entity_lines:
+        label_name, ents = line.split(":", 1)
+        processor = KeywordProcessor()
+        for ent in ents.split(","):
+            processor.add_keyword(ent.strip())
+        for (txt, start, end) in processor.extract_keywords(
+            example["text"], span_info=True
+        ):
+            span = doc.char_span(start, end, alignment_mode="contract")
+            spans.append(
+                {
+                    "label": label_name,
+                    "start": start,
+                    "end": end,
+                    "token_start": span.start,
+                    "token_end": span.end - 1,
+                }
+            )
+    return {**example, "spans": spans}
+
+
 @prodigy.recipe(
     "ner.openai.correct",
     dataset=("Dataset to save answers to", "positional", None, str),
