@@ -14,7 +14,7 @@ OPENAI_KEY = "sk-..."
 You'll also want to make sure the non-Prodigy dependencies are installed. 
 
 ```
-python -m pip install requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ## Running the NER demo. 
