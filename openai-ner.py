@@ -136,7 +136,6 @@ def _find_substrings(text: str, substrings: List[str]) -> List[Tuple[int, int]]:
 def before_db(examples):
     for ex in examples:
         del ex["html"]
-        print(ex)
     return examples
 
 @prodigy.recipe(
