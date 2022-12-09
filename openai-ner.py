@@ -1,8 +1,10 @@
 import os
-
+from pathlib import Path
+import random
 import copy
 import openai
 import prodigy
+from prodigy.components.db import connect
 import spacy
 from spacy.language import Language
 import srsly
@@ -20,7 +22,7 @@ openai.organization = os.getenv("OPENAI_ORG")
 openai.api_key = os.getenv("OPENAI_KEY")
 
 
-def _openai_zero_shot_ner(stream: Iterable[JSONOutput], *, model: str, labels: List[str], verbose: bool) -> Iterable[JSONOutput]:
+def _openai_zero_shot_ner(stream: Iterable[JSONOutput], *, model: str, labels: List[str], verbose: bool, steer_examples: List[Dict]) -> Iterable[JSONOutput]:
     """Get zero-shot suggested NER annotations from OpenAI.
 
     Given a stream of example dictionaries, we calculate a 
@@ -31,7 +33,7 @@ def _openai_zero_shot_ner(stream: Iterable[JSONOutput], *, model: str, labels: L
     for example in stream:
         assert isinstance(example, dict)
         example = copy.deepcopy(example)
-        prompt = generate_prompt(labels=labels, sentence=example["text"])
+        prompt = generate_prompt(labels=labels, sentence=example["text"], steer_examples=steer_examples)
         if verbose:
             rich.print(Panel(prompt, title="Prompt to OpenAI"))
 
@@ -77,12 +79,25 @@ def _convert_ner_suggestions(stream: Iterable[JSONOutput], nlp: Language) -> Ite
         yield example
 
 
-def generate_prompt(sentence: str, labels: List[str]) -> str:
+def _list_examples_of_type(example, label):
+    """Make a comma seperated string of annotations that should go into prompt"""
+    return ",".join([example['text'][s['start']:s['end']] for s in example['spans'] if s['label'].lower() == label.lower()])
+
+def generate_prompt(sentence: str, labels: List[str], steer_examples: List[Dict]) -> str:
+    """The prompt can use steer examples from the database to expand the prompt. 
+    
+    We only pick one random one at a time now to keep the response time at bay.
+    """
     result = (
         "From the text below, extract the following entities in the following format:"
     )
     for label in labels:
         result = f"{result}\n{label.title()}: <comma-separated list of each {label} mentioned>"
+    if steer_examples:
+        example = random.choice(steer_examples)
+        result = f'{result}\n\nText:\n"""\n{example["text"]}\n"""\n\nAnswer:'
+        for label in labels:
+            result = f"{result}\n{label.title()}: {_list_examples_of_type(example, label)}"
     result = f'{result}\n\nText:\n"""\n{sentence}\n"""\n\nAnswer:\n'
     return result
 
@@ -124,6 +139,11 @@ def _find_substrings(text: str, substrings: List[str]) -> List[Tuple[int, int]]:
     return offsets
 
 
+def before_db(examples):
+    for ex in examples:
+        del ex["html"]
+    return examples
+
 @prodigy.recipe(
     "ner.openai.correct",
     dataset=("Dataset to save answers to", "positional", None, str),
@@ -132,20 +152,26 @@ def _find_substrings(text: str, substrings: List[str]) -> List[Tuple[int, int]]:
     labels=("Labels ", "option", "l", str),
     verbose=("Show requests/responses of prompts to OpenAI", "flag", "v", bool),
     model=("GPT-3 model to use for completion", "option", "m", str),
+    steer=("Use flagged examples from dataset to steer output", "flag", "steer", bool)
 )
 def ner_openai_correct(
-    dataset, filepath, lang, labels, verbose=False, model="text-davinci-003"
+    dataset, filepath, lang, labels, verbose=False, model="text-davinci-003", steer=False,
 ):
     # Load your own streams from anywhere you want
     labels = labels.split(",")
     nlp = spacy.blank(lang)
+    steer_examples = []
+    if steer:
+        db = connect()
+        steer_examples = [ex for ex in db.get_dataset(dataset) if ex.get("flagged", False)]
     stream = srsly.read_jsonl(filepath)
-    stream = _openai_zero_shot_ner(stream, model=model, labels=labels, verbose=verbose)
+    stream = _openai_zero_shot_ner(stream, model=model, labels=labels, verbose=verbose, steer_examples=steer_examples)
     stream = _convert_ner_suggestions(stream, nlp=nlp)
     return {
         "dataset": dataset,
         "view_id": "blocks",
         "stream": stream,
+        "before_db": before_db,
         "config": {
             "labels": labels, 
             "batch_size": 1,
@@ -154,17 +180,6 @@ def ner_openai_correct(
                 {"view_id": "html"}
             ],
             "show_flag": True,
-            "global_css": """
-            .cleaned{
-                text-align: left;
-                font-size: 14px;
-            }
-            .cleaned p{
-                background-color: #eeeeee;
-                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-                padding: 15px 20px;
-                border-radius: 15px;
-            }
-            """
+            "global_css": Path("style.css").read_text()
         },
     }
