@@ -73,7 +73,7 @@ def _convert_ner_suggestions(stream: Iterable[JSONOutput], nlp: Language) -> Ite
                         }
                     )
         example = set_hashes({**example, "spans": spans})
-        example["html"] = f'<div class="cleaned"><details><summary><b>Show the response from OpenAI</b></summary><p>{example["openai"]["response"]}</p></details></div>'
+        example["html"] = f'<div class="cleaned"><details><summary><b>Show the prompt for OpenAI</b></summary><p>{example["openai"]["prompt"]}</p></details><details><summary><b>Show the response from OpenAI</b></summary><p>{example["openai"]["response"]}</p></details></div>'
         yield example
 
 
@@ -157,11 +157,13 @@ def ner_openai_correct(
             "global_css": """
             .cleaned{
                 text-align: left;
-                font-size: 16px;
+                font-size: 14px;
             }
             .cleaned p{
-                background-color: lightgrey;
+                background-color: #eeeeee;
                 font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+                padding: 15px 20px;
+                border-radius: 15px;
             }
             """
         },
