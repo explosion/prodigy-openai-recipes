@@ -38,8 +38,8 @@ def _openai_zero_shot_ner(stream: Iterable[JSONOutput], *, model: str, labels: L
         response = openai.Completion.create(
             model=model,
             prompt=prompt,
-            temperature=0,
-            max_tokens=64,
+            temperature=0.7,
+            max_tokens=256,
             top_p=1.0,
             frequency_penalty=0.0,
             presence_penalty=0.0,
@@ -73,6 +73,7 @@ def _convert_ner_suggestions(stream: Iterable[JSONOutput], nlp: Language) -> Ite
                         }
                     )
         example = set_hashes({**example, "spans": spans})
+        example["html"] = f'<div class="cleaned"><details><summary><b>Show the response from OpenAI</b></summary><p>{example["openai"]["response"]}</p></details></div>'
         yield example
 
 
@@ -123,44 +124,6 @@ def _find_substrings(text: str, substrings: List[str]) -> List[Tuple[int, int]]:
     return offsets
 
 
-def make_candidate(example, model, nlp, labels, verbose=True):
-    prompt = generate_prompt(labels=labels, sentence=example["text"], verbose=verbose)
-    response = openai.Completion.create(
-        model=model,
-        prompt=prompt,
-        temperature=0,
-        max_tokens=64,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-    )
-    resp_text = response["choices"][0]["text"]
-    if verbose:
-        print(Panel(resp_text, title="Response from OpenAI"))
-    entity_lines = resp_text.split("\n")
-    spans = []
-    doc = nlp(example["text"])
-    for line in entity_lines:
-        label_name, ents = line.split(":", 1)
-        processor = KeywordProcessor()
-        for ent in ents.split(","):
-            processor.add_keyword(ent.strip())
-        for (txt, start, end) in processor.extract_keywords(
-            example["text"], span_info=True
-        ):
-            span = doc.char_span(start, end, alignment_mode="contract")
-            spans.append(
-                {
-                    "label": label_name,
-                    "start": start,
-                    "end": end,
-                    "token_start": span.start,
-                    "token_end": span.end - 1,
-                }
-            )
-    return {**example, "spans": spans}
-
-
 @prodigy.recipe(
     "ner.openai.correct",
     dataset=("Dataset to save answers to", "positional", None, str),
@@ -171,7 +134,7 @@ def make_candidate(example, model, nlp, labels, verbose=True):
     model=("GPT-3 model to use for completion", "option", "m", str),
 )
 def ner_openai_correct(
-    dataset, filepath, lang, labels, verbose=False, model="text-davinci-002"
+    dataset, filepath, lang, labels, verbose=False, model="text-davinci-003"
 ):
     # Load your own streams from anywhere you want
     labels = labels.split(",")
@@ -181,7 +144,25 @@ def ner_openai_correct(
     stream = _convert_ner_suggestions(stream, nlp=nlp)
     return {
         "dataset": dataset,
-        "view_id": "ner_manual",
+        "view_id": "blocks",
         "stream": stream,
-        "config": {"labels": labels, "batch_size": 1},
+        "config": {
+            "labels": labels, 
+            "batch_size": 1,
+            "blocks":[
+                {"view_id": "ner_manual"},
+                {"view_id": "html"}
+            ],
+            "show_flag": True,
+            "global_css": """
+            .cleaned{
+                text-align: left;
+                font-size: 16px;
+            }
+            .cleaned p{
+                background-color: lightgrey;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            }
+            """
+        },
     }
