@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import random
 import copy
 import openai
@@ -78,10 +79,15 @@ def _convert_ner_suggestions(stream: Iterable[JSONOutput], nlp: Language) -> Ite
         yield example
 
 
-def list_examples_of_type(example, label):
+def _list_examples_of_type(example, label):
+    """Make a comma seperated string of annotations that should go into prompt"""
     return ",".join([example['text'][s['start']:s['end']] for s in example['spans'] if s['label'].lower() == label.lower()])
 
 def generate_prompt(sentence: str, labels: List[str], steer_examples: List[Dict]) -> str:
+    """The prompt can use steer examples from the database to expand the prompt. 
+    
+    We only pick one random one at a time now to keep the response time at bay.
+    """
     result = (
         "From the text below, extract the following entities in the following format:"
     )
@@ -91,7 +97,7 @@ def generate_prompt(sentence: str, labels: List[str], steer_examples: List[Dict]
         example = random.choice(steer_examples)
         result = f'{result}\n\nText:\n"""\n{example["text"]}\n"""\n\nAnswer:'
         for label in labels:
-            result = f"{result}\n{label.title()}: {list_examples_of_type(example, label)}"
+            result = f"{result}\n{label.title()}: {_list_examples_of_type(example, label)}"
     result = f'{result}\n\nText:\n"""\n{sentence}\n"""\n\nAnswer:\n'
     return result
 
@@ -174,17 +180,6 @@ def ner_openai_correct(
                 {"view_id": "html"}
             ],
             "show_flag": True,
-            "global_css": """
-            .cleaned{
-                text-align: left;
-                font-size: 14px;
-            }
-            .cleaned p{
-                background-color: #eeeeee;
-                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-                padding: 15px 20px;
-                border-radius: 15px;
-            }
-            """
+            "global_css": Path("style.css").read_text()
         },
     }

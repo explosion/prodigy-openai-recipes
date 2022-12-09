@@ -1,0 +1,10 @@
+.cleaned{
+    text-align: left;
+    font-size: 14px;
+}
+.cleaned p{
+    background-color: #eeeeee;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    padding: 15px 20px;
+    border-radius: 15px;
+}
