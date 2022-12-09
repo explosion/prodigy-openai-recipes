@@ -92,7 +92,6 @@ def generate_prompt(sentence: str, labels: List[str], steer_examples: List[Dict]
         result = f'{result}\n\nText:\n"""\n{example["text"]}\n"""\n\nAnswer:'
         for label in labels:
             result = f"{result}\n{label.title()}: {list_examples_of_type(example, label)}"
-        print(example['spans'])
     result = f'{result}\n\nText:\n"""\n{sentence}\n"""\n\nAnswer:\n'
     return result
 
@@ -140,7 +139,6 @@ def before_db(examples):
         print(ex)
     return examples
 
-
 @prodigy.recipe(
     "ner.openai.correct",
     dataset=("Dataset to save answers to", "positional", None, str),
@@ -152,7 +150,7 @@ def before_db(examples):
     steer=("Use flagged examples from dataset to steer output", "flag", "steer", bool)
 )
 def ner_openai_correct(
-    dataset, filepath, lang, labels, verbose=False, steer=False, model="text-davinci-003"
+    dataset, filepath, lang, labels, verbose=False, model="text-davinci-003", steer=False,
 ):
     # Load your own streams from anywhere you want
     labels = labels.split(",")
