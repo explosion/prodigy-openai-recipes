@@ -19,6 +19,23 @@ load_dotenv()  # take environment variables from .env.
 openai.organization = os.getenv("OPENAI_ORG")
 openai.api_key = os.getenv("OPENAI_KEY")
 
+def chunkify(nlp, stream, limit=200):
+    """Split the input into chunks, where each chunk is under a certain number
+    of tokens.
+
+    Will split at sentence boundaries. If a single sentence is over the chunk
+    limit, it will be emitted as one chunk.
+    """
+    for example in stream:
+        chunk = []
+        doc = nlp(example["text"])
+        for sent in doc.sents:
+            chunklen = sum(len(ss) for ss in chunk)
+            if chunklen + len(sent) >= limit:
+                yield {**example, "text": ' '.join(ss.text for ss in chunk)}
+                chunk = []
+            chunk.append(sent)
+        yield {**example, "text": ' '.join(ss.text for ss in chunk)}
 
 def _openai_zero_shot_ner(stream: Iterable[JSONOutput], *, model: str, labels: List[str], verbose: bool) -> Iterable[JSONOutput]:
     """Get zero-shot suggested NER annotations from OpenAI.
@@ -176,9 +193,12 @@ def ner_openai_correct(
     # Load your own streams from anywhere you want
     labels = labels.split(",")
     nlp = spacy.blank(lang)
+    nlp.add_pipe("sentencizer")
     stream = srsly.read_jsonl(filepath)
+    stream = chunkify(nlp, stream)
     stream = _openai_zero_shot_ner(stream, model=model, labels=labels, verbose=verbose)
     stream = _convert_ner_suggestions(stream, nlp=nlp)
+
     return {
         "dataset": dataset,
         "view_id": "ner_manual",
