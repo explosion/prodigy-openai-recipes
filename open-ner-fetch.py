@@ -1,78 +1,106 @@
-import asyncio
 import copy
-import itertools
 import os
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Callable, Dict, Iterable, List, Sequence, Tuple
 
 import httpx
-import openai
 import spacy
 import srsly
 from dotenv import load_dotenv
 import prodigy
 from prodigy.components.preprocess import add_tokens
 from prodigy.util import set_hashes
-from rich.progress import (
-    BarColumn,
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
-)
 from spacy.language import Language
 from srsly.util import JSONOutput
+import tqdm
+import time
 
 # Set up openai
 load_dotenv()  # take environment variables from .env.
-openai.organization = os.getenv("OPENAI_ORG")
-openai.api_key = os.getenv("OPENAI_KEY")
-
-headers = {
-    "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
-    "OpenAI-Organization": os.getenv("OPENAI_ORG"),
-    "Content-Type": "application/json",
-}
 
 
-async def fetch_completion(example: Dict[str, str]):
-    """Send a single completion request based on an example"""
-    json_data = {
-        "model": example["openai"]["model"],
-        "prompt": example["openai"]["prompt"],
-        "temperature": 0,
-        "max_tokens": 100,
+@prodigy.recipe(
+    "ner.openai.fetch",
+    filepath_in=("File to jsonl input data", "positional", None, Path),
+    filepath_out=("File to jsonl output data", "positional", None, Path),
+    labels=("Labels, seperated by a comma ", "positional", None, str),
+    model=("GPT-3 model to use for completion", "option", "m", str),
+    batch_size=("Batch size to send to OpenAI", "option", "b", int),
+)
+def fetch_ner(
+    filepath_in: Path,
+    filepath_out: Path,
+    labels: str,
+    model: str = "text-davinci-003",
+    batch_size: int = 10,
+):
+    headers = {
+        "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
+        "OpenAI-Organization": os.getenv("OPENAI_ORG"),
+        "Content-Type": "application/json",
     }
-    async with httpx.AsyncClient() as client:
-        r = await client.post(
-            "https://api.openai.com/v1/completions", headers=headers, json=json_data
+
+    stream = list(srsly.read_jsonl(filepath_in))
+    labels_list = labels.split(",")
+    for batch in tqdm.tqdm(_batch_sequence(stream, batch_size)):
+        prompts = [_get_prompt(eg["text"], labels_list) for eg in batch]
+        r = httpx.post(
+            "https://api.openai.com/v1/completions",
+            headers=headers,
+            json={
+                "model": model,
+                "prompt": prompts,
+                "temperature": 0,
+                "max_tokens": 500,
+            },
         )
-        return r
+        r.raise_for_status()
+        responses = r.json()
+        for i, eg in enumerate(batch):
+            prompt = prompts[i]
+            response = responses["choices"][i]["text"]
+            eg["openai"] = {"prompt": prompt, "response": response}
+
+        time.sleep(1)
+    srsly.write_jsonl(filepath_out, stream)
 
 
-async def request_many(stream):
-    """Select 10 items from the stream and batch in a single async call"""
-    top10 = list(itertools.islice(stream, 10))
-    responses = await asyncio.gather(*[fetch_completion(ex) for ex in top10])
-    for ex, resp in zip(top10, responses):
-        ex["openai"]["response"] = resp.json()["choices"][0]["text"]
-    return top10
+def _batch_sequence(items: List, batch_size: int) -> List[List]:
+    output = []
+    i = 0
+    while i < len(items):
+        output.append(items[i : i + batch_size])
+        i += len(output[-1])
+    return output
 
 
-def attach_prompt(example: Dict[str, str], labels: List[str], model: str) -> str:
-    """Attach the openai prompt to each example"""
+def _get_prompt(text: str, labels: List[str]) -> str:
+    """Compute the zero-shot NER prompt for text"""
     result = (
         "From the text below, extract the following entities in the following format:"
     )
     for label in labels:
         result = f"{result}\n{label.title()}: <comma-separated list of each {label} mentioned>"
-    result = f'{result}\n\nText:\n"""\n{example["text"]}\n"""\n\nAnswer:\n'
-    example["openai"] = {"prompt": result, "model": model}
-    return example
+    result = f'{result}\n\nText:\n"""\n{text}\n"""\n\nAnswer:\n'
+    return result
 
 
-def _convert_ner_suggestions(
+@prodigy.recipe(
+    "ner.openai.convert",
+    filepath_in=("File to jsonl input data", "positional", None, str),
+    filepath_out=("File to jsonl output data", "positional", None, str),
+    lang=("Language to use for tokenizer.", "positional", None, str),
+    labels=("Labels, seperated by a comma ", "option", "l", str),
+)
+def convert_ner_suggestions(filepath_in, filepath_out, lang, labels):
+    stream = list(srsly.read_jsonl(filepath_in))
+    labels = labels.split(",")
+    nlp = spacy.blank(lang)
+    stream = _convert_openai_ner_suggestions(stream, nlp)
+    srsly.write_jsonl(filepath_out, stream)
+
+
+def _convert_openai_ner_suggestions(
     stream: Iterable[JSONOutput], nlp: Language
 ) -> Iterable[JSONOutput]:
     stream = add_tokens(nlp, stream, skip=True)  # type: ignore
@@ -119,13 +147,11 @@ def _parse_response(text: str) -> List[Tuple[str, List[str]]]:
 
 def _find_substrings(text: str, substrings: List[str]) -> List[Tuple[int, int]]:
     """Given a list of substrings, find their character start and end positions in a text. The substrings are assumed to be sorted by the order of their occurrence in the text."""
-    # Sometimes the first substring is title-cased.
-    # If it is, and it's not in the text titled, fix it.
-    if substrings and substrings[0] not in text:
-        substrings[0] = substrings[0].lower()
+    text = text.lower()
     offsets = []
     search_from = 0
     for substring in substrings:
+        substring = substring.lower().strip()
         # Find from an offset, to handle phrases that
         # occur multiple times in the text.
         start = text.find(substring, search_from)
@@ -134,61 +160,3 @@ def _find_substrings(text: str, substrings: List[str]) -> List[Tuple[int, int]]:
             offsets.append((start, end))
             search_from = end
     return offsets
-
-
-@prodigy.recipe(
-    "ner.openai.fetch",
-    filepath_in=("File to jsonl input data", "positional", None, str),
-    filepath_out=("File to jsonl output data", "positional", None, str),
-    lang=("Language to use for tokenizer.", "positional", None, str),
-    labels=("Labels, seperated by a comma ", "option", "l", str),
-    n_examples=("Number of examples to fetch", "option", "n", int),
-    verbose=("Show requests/responses of prompts to OpenAI", "flag", "v", bool),
-    model=("GPT-3 model to use for completion", "option", "m", str),
-)
-def main(filepath_in, filepath_out, lang, labels, n_examples=200, verbose=False, model="text-davinci-003"):
-    stream = srsly.read_jsonl(filepath_in)
-    labels = labels.split(",")
-    nlp = spacy.blank(lang)
-    stream = ({**ex, "labels": labels} for ex in stream)
-    stream = (
-        set_hashes(ex, input_keys=("text",), task_keys=("labels",)) for ex in stream
-    )
-    stream = (attach_prompt(ex, labels=labels, model=model) for ex in stream)
-
-    # Make sure we don't send the same prompt twice
-    # TODO: should the model used by OpenAI be part of the _task_hash? 
-    annot_stream = []
-    if Path(filepath_out).exists():
-        annot_stream = srsly.read_jsonl(filepath_out)
-    hashes_already_done = {(e["_input_hash"], e["_task_hash"]) for e in annot_stream}
-    stream = (
-        ex
-        for ex in stream
-        if (ex["_input_hash"], ex["_task_hash"]) not in hashes_already_done
-    )
-
-    examples = []
-
-    progress = Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TimeElapsedColumn(),
-        TextColumn("-"),
-        TimeRemainingColumn(),
-    )
-    with progress:
-        for _ in progress.track(
-            range(n_examples//10), description="Sending prompts to OpenAI."
-        ):
-            try:
-                responses = asyncio.run(request_many(stream=stream))
-            except httpx.HTTPError as exc:
-                progress.console.print("Hit an HTTPError. Will skip a batch.")
-                if verbose:
-                    progress.console.log(exc)
-            for r in _convert_ner_suggestions(responses, nlp=nlp):
-                examples.append(r)
-
-    srsly.write_jsonl(filepath_out, examples, append=True, append_new_line=False)
