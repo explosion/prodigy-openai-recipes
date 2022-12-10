@@ -1,22 +1,30 @@
 From the text below, extract the following entities in the following format:
-{% for label in labels -%}
+{# whitespace #}
+{%- for label in labels -%}
 {{label}}: <comma delimited list of strings>
-{% endfor %}
-
+{# whitespace #}
+{%- endfor -%}
+{# whitespace #}
 Text:
 """
 {{text}}
 """
-{%- if examples %}
+{# whitespace #}
+{%- if examples -%}
+{# whitespace #}
 For example:
-
-{% for example in examples -%}
+{# whitespace #}
+{# whitespace #}
+{%- for example in examples -%}
 Text:
 """
 {{ example["text"] }}
 """
-{% for label, substrings in example["entities"] -%}
+{# whitespace #}
+{%- for label, substrings in example["entities"] -%}
 {{ label }}: {{ ", ".join(substrings) }}
-{% endfor %}
+{# whitespace #}
+{%- endfor -%}
+{# whitespace #}
 {% endfor -%}
 {%- endif -%}

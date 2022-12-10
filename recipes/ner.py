@@ -306,14 +306,14 @@ def test_template_no_examples():
         prompt
         == f"""
 From the text below, extract the following entities in the following format:
+PERSON: <comma delimited list of strings>
+PLACE: <comma delimited list of strings>
+PERIOD: <comma delimited list of strings>
 
 Text:
 \"\"\"
 David Bowie lived in Berlin in the 1970s.
 \"\"\"
-PERSON: <comma delimited list of strings>
-PLACE: <comma delimited list of strings>
-PERIOD: <comma delimited list of strings>
 """.lstrip()
     )
 
@@ -334,18 +334,19 @@ def test_template_two_examples():
     path = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
     template = _load_template(path)
     prompt = template.render(text=text, labels=labels, examples=examples)
+    print(prompt)
     assert (
         prompt
         == f"""
 From the text below, extract the following entities in the following format:
+PERSON: <comma delimited list of strings>
+PLACE: <comma delimited list of strings>
+PERIOD: <comma delimited list of strings>
 
 Text:
 \"\"\"
 David Bowie lived in Berlin in the 1970s.
 \"\"\"
-PERSON: <comma delimited list of strings>
-PLACE: <comma delimited list of strings>
-PERIOD: <comma delimited list of strings>
 
 For example:
 
