@@ -1,0 +1,11 @@
+- 
+  text: "You can't get a great chocolate flavor with carob."
+
+  entities:
+    Ingredient:
+      - carob
+
+-
+  text: "You can probably sand-blast it if it's an anodized aluminum INGREDIENTpan, which it probably is."
+  entities:
+    Ingredient: [] 
