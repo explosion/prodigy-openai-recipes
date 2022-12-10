@@ -265,6 +265,14 @@ def ner_openai_fetch(
     max_examples: int = 2,
     verbose: bool = False,
 ):
+    """Get bulk NER suggestions from an OpenAI API, using zero-shot or few-shot learning.
+    The results can then be corrected using the `ner.manual` recipe.
+
+    This approach lets you get the openai queries out of the way upfront, which can help
+    if you want to use multiple annotators of if you want to make sure you don't have to
+    wait on the OpenAI queries. The downside is that you can't flag examples to be integrated
+    into the prompt during the annotation, unlike the ner.openai.correct recipe.
+    """
     examples = _read_examples(examples_path)
     nlp = spacy.blank(lang)
     openai = OpenAISuggester(
