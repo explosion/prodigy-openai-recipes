@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Tuple, TypeVar, cast, Optional
 import time
 import sys
+import tqdm
 
 import httpx
 import spacy
@@ -170,10 +171,15 @@ class OpenAISuggester:
     "ner.openai.correct",
     dataset=("Dataset to save answers to", "positional", None, str),
     filepath=("Path to jsonl data to annotate", "positional", None, Path),
-    lang=("Language to use for tokenizer.", "positional", None, str),
-    labels=("Labels ", "option", "l", lambda s: s.split(",")),
+    labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
     model=("GPT-3 model to use for completion", "option", "m", str),
-    examples_path=("Path to examples to help define the task", "option", "e", Path),
+    examples=(
+        "Path to examples to help define the task",
+        "option",
+        "e",
+        Path,
+    ),
+    lang=("Language to use for tokenizer", "option", "l", str),
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
@@ -181,25 +187,15 @@ class OpenAISuggester:
 def ner_openai_correct(
     dataset: str,
     filepath: Path,
-    lang: str,
     labels: List[str],
+    lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
-    examples_path: Optional[Path] = None,
+    examples: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
     max_examples: int = 0,
 ):
-    if examples_path is not None:
-        if examples_path.suffix in (".yml", ".yaml"):
-            examples = _read_yaml_examples(examples_path)
-        elif examples_path.suffix == ".jsonl":
-            examples = list(cast(List[Dict], srsly.read_jsonl(examples_path)))
-        else:
-            # TODO: Improve this
-            print("Unknown file format for examples.")
-            sys.exit(1)
-    else:
-        examples = []
+    examples = _read_examples(examples)  # type: ignore
     nlp = spacy.blank(lang)
     openai = OpenAISuggester(
         model=model,
@@ -229,6 +225,57 @@ def ner_openai_correct(
             "global_css": Path("style.css").read_text(),
         },
     }
+
+
+@prodigy.recipe(
+    "ner.openai.fetch",
+    input_path=("Path to jsonl data to annotate", "positional", None, Path),
+    output_path=("Path to save the output", "positional", None, Path),
+    labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
+    lang=("Language to use for tokenizer.", "option", "l", str),
+    model=("GPT-3 model to use for completion", "option", "m", str),
+    examples=("Examples file to help define the task", "option", "e", Path),
+    max_examples=("Max examples to include in prompt", "option", "n", int),
+    prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
+    batch_size=("Batch size to send to OpenAI API", "option", "b", int),
+)
+def ner_openai_fetch(
+    input_path: Path,
+    output_path: Path,
+    labels: List[str],
+    lang: str = "en",
+    model: str = "text-davinci-003",
+    batch_size: int = 10,
+    examples: Optional[Path] = None,
+    prompt_path: Path = DEFAULT_PROMPT_PATH,
+    max_examples: int = 0,
+):
+    examples = _read_examples(examples)  # type: ignore
+    nlp = spacy.blank(lang)
+    openai = OpenAISuggester(
+        model=model,
+        labels=labels,
+        max_examples=max_examples,
+        prompt_template=_load_template(prompt_path),
+    )
+    for eg in examples:
+        openai.add_example(eg)
+    stream = list(srsly.read_jsonl(input_path))
+    stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
+    srsly.write_jsonl(output_path, stream)
+
+
+def _read_examples(path: Optional[Path]) -> List[Dict]:
+    if path is None:
+        return []
+    elif path.suffix in (".yml", ".yaml"):
+        return _read_yaml_examples(path)
+    elif path.suffix == ".json":
+        return cast(List[Dict], srsly.read_json(path))
+    else:
+        # TODO: Improve this
+        print("Unknown file format for examples.")
+        sys.exit(1)
 
 
 def _load_template(path: Path) -> jinja2.Template:
