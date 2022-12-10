@@ -28,17 +28,26 @@ load_dotenv()  # take environment variables from .env.
 
 
 class OpenAISuggester:
+    prompt_template: jinja2.Template
+    model: str
+    labels: List[str]
+    max_examples: int
+    verbose: bool
+    examples: List[Dict]
+
     def __init__(
         self,
         prompt_template: jinja2.Template,
         model: str,
         labels: List[str],
         max_examples: int,
+        verbose: bool = False,
     ):
         self.prompt_template = prompt_template
         self.model = model
         self.labels = labels
         self.max_examples = max_examples
+        self.verbose = verbose
         self.examples = []
 
     def __call__(
@@ -80,10 +89,11 @@ class OpenAISuggester:
             ]
             responses = self._get_ner_response(prompts)
             for eg, prompt, response in zip(batch, prompts, responses):
-                rich.print(Panel(prompt, title="Prompt to OpenAI"))
+                if self.verbose:
+                    rich.print(Panel(prompt, title="Prompt to OpenAI"))
                 eg["openai"] = {"prompt": prompt, "response": response}
-
-                rich.print(Panel(response, title="Response from OpenAI"))
+                if self.verbose:
+                    rich.print(Panel(response, title="Response from OpenAI"))
                 yield eg
 
     def format_suggestions(
@@ -183,6 +193,7 @@ class OpenAISuggester:
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
+    verbose=("Print extra information to terminal", "option", "v", bool),
 )
 def ner_openai_correct(
     dataset: str,
@@ -191,17 +202,19 @@ def ner_openai_correct(
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
-    examples: Optional[Path] = None,
+    examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
-    max_examples: int = 0,
+    max_examples: int = 2,
+    verbose: bool = False,
 ):
-    examples = _read_examples(examples)  # type: ignore
+    examples = _read_examples(examples_path)
     nlp = spacy.blank(lang)
     openai = OpenAISuggester(
         model=model,
         labels=labels,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
+        verbose=verbose,
     )
     for eg in examples:
         openai.add_example(eg)
@@ -222,7 +235,7 @@ def ner_openai_correct(
             "exclude_by": "input",
             "blocks": [{"view_id": "ner_manual"}, {"view_id": "html"}],
             "show_flag": True,
-            "global_css": Path("style.css").read_text(),
+            "global_css": (Path(__file__).parent / "style.css").read_text(),
         },
     }
 
@@ -238,6 +251,7 @@ def ner_openai_correct(
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
+    verbose=("Print extra information to terminal", "option", "v", bool),
 )
 def ner_openai_fetch(
     input_path: Path,
@@ -246,17 +260,19 @@ def ner_openai_fetch(
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
-    examples: Optional[Path] = None,
+    examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
-    max_examples: int = 0,
+    max_examples: int = 2,
+    verbose: bool = False,
 ):
-    examples = _read_examples(examples)  # type: ignore
+    examples = _read_examples(examples_path)
     nlp = spacy.blank(lang)
     openai = OpenAISuggester(
         model=model,
         labels=labels,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
+        verbose=verbose,
     )
     for eg in examples:
         openai.add_example(eg)
