@@ -86,11 +86,14 @@ class OpenAISuggester:
                 yield eg
 
     def format_suggestions(
-        self, stream: Iterable[Dict], nlp: Language
+        self, stream: Iterable[Dict], *, nlp: Language
     ) -> Iterable[Dict]:
         stream = prodigy.components.preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
         for example in stream:
             example = copy.deepcopy(example)
+            # This tokenizes the text with spaCy, so that the token boundaries can be used
+            # during the annotation. Without the token boundaries, you need to get the
+            # annotation exactly on the characters, which is annoying.
             doc = nlp.make_doc(example["text"])
             response = self._parse_response(example["openai"]["response"])
             spans = []
@@ -212,12 +215,10 @@ def ner_openai_correct(
             if eg.get("flagged"):
                 openai.add_example(eg)
     stream = cast(Iterable[Dict], srsly.read_jsonl(filepath))
-    stream = openai.stream_suggestions(stream, batch_size=batch_size)
-    stream = openai.format_suggestions(stream, nlp=nlp)
     return {
         "dataset": dataset,
         "view_id": "blocks",
-        "stream": stream,
+        "stream": openai(stream, batch_size=batch_size, nlp=nlp),
         "update": openai.update,
         "config": {
             "labels": labels,
@@ -334,7 +335,6 @@ def test_template_two_examples():
     path = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
     template = _load_template(path)
     prompt = template.render(text=text, labels=labels, examples=examples)
-    print(prompt)
     assert (
         prompt
         == f"""
