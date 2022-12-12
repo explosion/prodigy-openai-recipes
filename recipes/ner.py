@@ -205,7 +205,7 @@ def ner_openai_correct(
     examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
     max_examples: int = 2,
-    verbose: bool = True,
+    verbose: bool = False,
 ):
     examples = _read_examples(examples_path)
     nlp = spacy.blank(lang)
