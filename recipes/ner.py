@@ -253,7 +253,7 @@ def ner_openai_correct(
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
-    verbose=("Print extra information to terminal", "option", "v", bool),
+    verbose=("Print extra information to terminal", "option", "flag", bool),
 )
 def ner_openai_fetch(
     input_path: Path,
