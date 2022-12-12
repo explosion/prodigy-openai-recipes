@@ -45,7 +45,9 @@ Here's what the annotation interface will look like.
 
 ![](imgs/ner-correct.png)
 
-### The `-v` flag. 
+You'll notice that the annotation interface comes with values pre-filled, which can speed up annotation.
+
+### Curious about the prompt?
 
 If you're curious to see what we send to OpenAI and what we get back, you can run the recipe with the `-v` verbose flag. This will print the prompt and the response in the terminal as traffic is received. 
 
@@ -68,97 +70,8 @@ If you're curious to see what we send to OpenAI and what we get back, you can ru
 ╰─────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-If you'd like to understand the prompts and reponses, feel free to use the `--verbose` flag. It'll give extra output that looks like below: 
+This repo also provides templates that you can customise in the `/templates` folder. We use `jinja2` to populate these templates with prompts, but you can choose to create your own template and use it via the `--prompt-path` option. 
 
-```
-╭─────────────────────────── Prompt to OpenAI ───────────────────────────╮
-│ From the text below, extract the following entities in the following   │
-│ format:                                                                │
-│ Person: <comma-separated list of each person mentioned>                │
-│ Place: <comma-separated list of each place mentioned>                  │
-│ Company: <comma-separated list of each company mentioned>              │
-│                                                                        │
-│ Text:                                                                  │
-│ """                                                                    │
-│ Vincent D. Warmerdam lives in Haarlem with two cats. They are called   │
-│ Sok and Noa.                                                           │
-│ """                                                                    │
-│                                                                        │
-│ Answer:                                                                │
-│                                                                        │
-╰────────────────────────────────────────────────────────────────────────╯
-╭───────────────────────── Response from OpenAI ─────────────────────────╮
-│ Person: Vincent D. Warmerdam                                           │
-│ Place: Haarlem                                                         │
-│ Company:                                                               │
-╰────────────────────────────────────────────────────────────────────────╯
-```
+## Better Suggestions 
 
-## Running the Textcat Demo 
-
-You can run the experiment via: 
-
-```
-python -m prodigy textcat.openai.correct openai-textcat-demo textcat-examples.jsonl en -l positive,negative,neutral -F openai-textcat.py
-```
-
-If you'd like to understand the prompts and reponses, feel free to use the `--verbose` flag. It'll give extra output that looks like below: 
-
-```
-╭──────────────────────────────── Prompt to OpenAI ─────────────────────────────────╮
-│ From the text below, tell me which class describes it best. From the following    │
-│ list:                                                                             │
-│ - positive                                                                        │
-│ - negative                                                                        │
-│ - neutral                                                                         │
-│                                                                                   │
-│ Text:                                                                             │
-│ """                                                                               │
-│ Oh no!                                                                            │
-│ """                                                                               │
-│                                                                                   │
-│ Answer:                                                                           │
-│                                                                                   │
-╰───────────────────────────────────────────────────────────────────────────────────╯
-╭────────────────────────────── Response from OpenAI ───────────────────────────────╮
-│                                                                                   │
-│ negative                                                                          │
-╰───────────────────────────────────────────────────────────────────────────────────╯
-```
-
-## Running the Paraphrase Demo 
-
-This demo demonstrates how you can generate more training data by having OpenAI generate more relevant examples. This recipe works by 
-declaring a task in natural language together with some examples of stuff you'd like to see more of. In this demo, we're generating fast food orders for a span annotation task.
-
-You can run the experiment via: 
-
-```
-python -m prodigy spancat.openai.paraphrase openai-spancat-demo paraphrase-examples.jsonl en paraphrase-task.txt -l amount,size,toppings,type,product -F openai-paraphrase.py
-```
-
-If you'd like to understand the prompts and reponses, feel free to use the `--verbose` flag. It'll give extra output that looks like below: 
-
-```
-╭───────────────────────────────────────── Prompt to OpenAI ─────────────────────────────────────────╮
-│ The task is to examples of people ordering food at a McDonalds                                     │
-│ Examples should sometimes also include drink orders and side-dishes.                               │
-│ It is preferable to come up with elaborate combinations of items.                                  │
-│ I want more examples of sentences like below.                                                      │
-│                                                                                                    │
-│ Current examples:                                                                                  │
-│                                                                                                    │
-│ - A Big Mac with extra bacon, an order of French fries with spicy ketchup, and a xl mountain dew.  │
-│ - A Quarter Pounder with cheese, a McChicken, and a large sweet tea.                               │
-│ - A Filet-O-Fish, a cheeseburger, and an order of onion rings.                                     │
-│ - A Big Mac with extra pickles, a 10-piece McNuggets, and a large strawberry milkshake.            │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭─────────────────────────────────────── Response from OpenAI ───────────────────────────────────────╮
-│                                                                                                    │
-│ - A Double Cheeseburger, a McFlurry, and a small Coke.                                             │
-│ - A double cheeseburger with extra bacon, a large order of fries, and a Diet Coke.                 │
-│ - A Bacon McDouble, a McChicken, and a large orange juice.                                         │
-│ - A Quarter Pounder Deluxe with extra onions, a McFlurry, and a medium Sprite.                     │
-│ - A Big Mac with extra lettuce, a 6-piece McNuggets, and a large iced                              │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────╯
-```
+At some point, you might notice OpenAI make a mistake. 
