@@ -205,7 +205,7 @@ def ner_openai_correct(
     examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
     max_examples: int = 2,
-    verbose: bool = False,
+    verbose: bool = True,
 ):
     examples = _read_examples(examples_path)
     nlp = spacy.blank(lang)
@@ -220,9 +220,11 @@ def ner_openai_correct(
         openai.add_example(eg)
     if max_examples >= 1:
         db = prodigy.components.db.connect()
-        for eg in db.get_dataset(dataset):
-            if eg.get("flagged"):
-                openai.add_example(eg)
+        db_examples = db.get_dataset(dataset)
+        if db_examples:
+            for eg in db_examples:
+                if eg.get("flagged"):
+                    openai.add_example(eg)
     stream = cast(Iterable[Dict], srsly.read_jsonl(filepath))
     return {
         "dataset": dataset,
