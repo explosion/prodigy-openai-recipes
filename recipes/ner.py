@@ -183,7 +183,7 @@ class OpenAISuggester:
     filepath=("Path to jsonl data to annotate", "positional", None, Path),
     labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
     model=("GPT-3 model to use for completion", "option", "m", str),
-    examples=(
+    examples_path=(
         "Path to examples to help define the task",
         "option",
         "e",
@@ -247,7 +247,7 @@ def ner_openai_correct(
     labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
     lang=("Language to use for tokenizer.", "option", "l", str),
     model=("GPT-3 model to use for completion", "option", "m", str),
-    examples=("Examples file to help define the task", "option", "e", Path),
+    examples_path=("Examples file to help define the task", "option", "e", Path),
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
