@@ -74,4 +74,22 @@ This repo also provides templates that you can customise in the `/templates` fol
 
 ## Better Suggestions 
 
-At some point, you might notice OpenAI make a mistake. 
+At some point, you might notice OpenAI make a mistake. We noticed it making errors on this example:
+
+```
+{"text": "Caribbean macaroni pie is an awesome baked macaroni and cheese dish. It's popular for a reason. It’s tasty, and pretty cheap too. The Bajan, Guyanese and Trinidadian kitchens all have their own variant though."}
+```
+
+Using this call: 
+
+```
+
+```
+
+It generated this:
+
+![](mistake.png)
+
+It's a relatively minor mistake, but notice how "Caribbean" didn't get picked up. Mistakes can be pre   sc
+
+{"text": "Jamaican, bajan, Guyanese, trinidadian and other Caribbean cuisines are all great! The ingredients and method of cooking is similar, but there are differences. The macaroni from this recipe, typically bucatini, is seasoned with pimento peppers, garlic, sometimes onions, dried seasonings, and depending on who you ask, whatever is leftover from the night before."}
