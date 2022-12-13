@@ -360,14 +360,25 @@ def _find_substrings(
     offsets = []
     search_from = 0
     for substring in substrings:
+        if substring == "":
+            continue
         # Find from an offset, to handle phrases that
         # occur multiple times in the text.
-        start = text.find(substring, search_from)
-        if start != -1:
+        while True:
+            start = text.find(substring, search_from)
+            if start == -1:
+                break
             end = start + len(substring)
             offsets.append((start, end))
             search_from = end
     return offsets
+
+
+def test_multiple_substrings():
+    text = "The Blargs is the debut album by The Blargs."
+    substrings = ["The Blargs"]
+    res = _find_substrings(text, substrings)
+    assert len(res) == 2, "Didn't find the right number of occurrences"
 
 
 def test_template_no_examples():
