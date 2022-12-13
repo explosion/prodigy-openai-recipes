@@ -35,7 +35,7 @@ For the first demo we'll use an `examples.jsonl` file that contains the followin
 {"text": "club monaco's Super Slim Twill Pant is pretty good. i like the taper but the thighs and seat are a bit too skinny for my tastes."}
 ```
 
-The goal of this dataset is to extra the fashion brands with the clothing items. So let's see what OpenAI can annotate for us! We can use the `ner.openai.correct` to send examples to their API one at a time. 
+The goal of this dataset is to extra the fashion brands with the clothing items. So let's see what OpenAI can annotate for us! We can use the `ner.openai.correct` to send examples to their API and get a prediction back.
 
 ```
 python -m prodigy ner.openai.correct fashion-openai examples.jsonl "brand,clothing" -F recipes/ner.py
@@ -72,6 +72,16 @@ If you're curious to see what we send to OpenAI and what we get back, you can ru
 
 This repo also provides templates that you can customise in the `/templates` folder. We use `jinja2` to populate these templates with prompts, but you can choose to create your own template and use it via the `--prompt-path` option. 
 
+## Fetching data upfront 
+
+Right now we are fetching examples from OpenAI while annotating, but we've also included a recipe can get fetch a large batch of examples upfront. 
+
+```
+python -m prodigy ner.openai.fetch examples.jsonl fetched-examples.jsonl "cuisine,place,ingredient" -F recipes/ner.py
+```
+
+This will create a `fetch-examples.jsonl` file that can be loaded by our the [ner.manual](https://prodi.gy/docs/recipes#ner-manual) recipe.
+
 ## Better Suggestions 
 
 At some point, you might notice OpenAI make a mistake. We noticed it making errors on this example:
@@ -83,13 +93,24 @@ At some point, you might notice OpenAI make a mistake. We noticed it making erro
 Using this call: 
 
 ```
-
+python -m prodigy ner.openai.correct cooking-openai examples.jsonl "cuisine,place,ingredient" -F recipes/ner.py
 ```
 
 It generated this:
 
-![](mistake.png)
+![](imgs/mistake.png)
 
-It's a relatively minor mistake, but notice how "Caribbean" didn't get picked up. Mistakes can be pre   sc
+It's a relatively minor mistake, but notice how "Caribbean" didn't get picked up. OpenAI isn't perfect. Mistakes can come in all sorts of shapes and sizes, but we are able to steer the output by adding some more examples to the prompt. 
 
-{"text": "Jamaican, bajan, Guyanese, trinidadian and other Caribbean cuisines are all great! The ingredients and method of cooking is similar, but there are differences. The macaroni from this recipe, typically bucatini, is seasoned with pimento peppers, garlic, sometimes onions, dried seasonings, and depending on who you ask, whatever is leftover from the night before."}
+### Adding Examples to the Prompt
+
+So let's annotate this example so we may add it to the prompt. 
+
+![](imgs/flagged.png)
+
+Note that I'm also flagging this example, which makes it easier for me to retreive it into a file. The command below does just that.
+
+```
+python -m prodigy db-out cooking-openai | grep \"flagged\":true > prompt-examples.jsonl
+```
+
