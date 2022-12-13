@@ -194,7 +194,7 @@ class OpenAISuggester:
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
-    verbose=("Print extra information to terminal", "option", "v", bool),
+    verbose=("Print extra information to terminal", "flag", "v", bool),
 )
 def ner_openai_correct(
     dataset: str,
@@ -221,9 +221,11 @@ def ner_openai_correct(
         openai.add_example(eg)
     if max_examples >= 1:
         db = prodigy.components.db.connect()
-        for eg in db.get_dataset(dataset):
-            if eg.get("flagged"):
-                openai.add_example(eg)
+        db_examples = db.get_dataset(dataset)
+        if db_examples:
+            for eg in db_examples:
+                if eg.get("flagged"):
+                    openai.add_example(eg)
     stream = cast(Iterable[Dict], srsly.read_jsonl(filepath))
     return {
         "dataset": dataset,
@@ -252,7 +254,7 @@ def ner_openai_correct(
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
-    verbose=("Print extra information to terminal", "option", "v", bool),
+    verbose=("Print extra information to terminal", "option", "flag", bool),
 )
 def ner_openai_fetch(
     input_path: Path,
