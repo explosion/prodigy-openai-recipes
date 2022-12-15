@@ -358,8 +358,9 @@ def _find_substrings(
         text = text.lower()
         substrings = [s.lower() for s in substrings]
     offsets = []
-    search_from = 0
     for substring in substrings:
+        # This needs to be reset for each substring as part of handling multiple mentions.
+        search_from = 0
         if substring == "":
             continue
         # Find from an offset, to handle phrases that
