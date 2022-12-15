@@ -358,8 +358,9 @@ def _find_substrings(
         text = text.lower()
         substrings = [s.lower() for s in substrings]
     offsets = []
-    search_from = 0
     for substring in substrings:
+        # This needs to be reset for each substring as part of handling multiple mentions.
+        search_from = 0
         if substring == "":
             continue
         # Find from an offset, to handle phrases that
@@ -375,10 +376,10 @@ def _find_substrings(
 
 
 def test_multiple_substrings():
-    text = "The Blargs is the debut album by The Blargs."
-    substrings = ["The Blargs"]
+    text = "The Blargs is the debut album by rock band The Blargs."
+    substrings = ["The Blargs", "rock"]
     res = _find_substrings(text, substrings)
-    assert len(res) == 2, "Didn't find the right number of occurrences"
+    assert len(res) == 3, "Didn't find the right number of occurrences"
 
 
 def test_template_no_examples():
