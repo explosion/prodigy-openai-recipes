@@ -2,8 +2,6 @@
 
 An internal repo to share code for OpenAI recipes.
 
-![](image.png)
-
 ## Setup and Install 
 
 Before running any demos, you need to make sure that the `.env` file contains the right keys. 
@@ -19,105 +17,100 @@ You'll also want to make sure the non-Prodigy dependencies are installed.
 python -m pip install -r requirements.txt
 ```
 
-## Running the NER demo. 
+## Running the NER demos. 
 
-You can run the experiment via: 
+We're hosting recipes that use zero/few-shot learning via OpenAI. 
 
-```
-python -m prodigy ner.openai.correct openai-ner-demo ner-examples.jsonl en -l person,place,company -F openai-ner.py
-```
+![](image.png)
 
-If you'd like to understand the prompts and reponses, feel free to use the `--verbose` flag. It'll give extra output that looks like below: 
+The recipe can take examples from a local `.jsonl` file and turn them into NER annotation prompts. These can be sent to GPT-3, hosted by OpenAI, which respond with an answer. The recipes handle the translation between Prodigy and OpenAI such that you can confirm the annotations easily from Prodigy. It's very much like using the standard [`ner.correct`](https://prodi.gy/docs/recipes#ner-correct) recipe in Prodi.gy, but we're using GPT-3 as a backend model to make predictions. 
 
-```
-╭─────────────────────────── Prompt to OpenAI ───────────────────────────╮
-│ From the text below, extract the following entities in the following   │
-│ format:                                                                │
-│ Person: <comma-separated list of each person mentioned>                │
-│ Place: <comma-separated list of each place mentioned>                  │
-│ Company: <comma-separated list of each company mentioned>              │
-│                                                                        │
-│ Text:                                                                  │
-│ """                                                                    │
-│ Vincent D. Warmerdam lives in Haarlem with two cats. They are called   │
-│ Sok and Noa.                                                           │
-│ """                                                                    │
-│                                                                        │
-│ Answer:                                                                │
-│                                                                        │
-╰────────────────────────────────────────────────────────────────────────╯
-╭───────────────────────── Response from OpenAI ─────────────────────────╮
-│ Person: Vincent D. Warmerdam                                           │
-│ Place: Haarlem                                                         │
-│ Company:                                                               │
-╰────────────────────────────────────────────────────────────────────────╯
-```
+## First Steps
 
-## Running the Textcat Demo 
-
-You can run the experiment via: 
+For the first demo we'll use an `examples.jsonl` file that contains the following examples. 
 
 ```
-python -m prodigy textcat.openai.correct openai-textcat-demo textcat-examples.jsonl en -l positive,negative,neutral -F openai-textcat.py
+{"text": "I'm a total hillfiger fanboy. Gotta love 'em jeans."}
+{"text": "Levis all the way. Their jeans are solid, but their jackets are better than old navy."}
+{"text": "club monaco's Super Slim Twill Pant is pretty good. i like the taper but the thighs and seat are a bit too skinny for my tastes."}
 ```
 
-If you'd like to understand the prompts and reponses, feel free to use the `--verbose` flag. It'll give extra output that looks like below: 
+The goal of this dataset is to extract the fashion brands with the clothing items. So let's see what OpenAI can annotate for us! We can use the `ner.openai.correct` recipe to send examples to their API and get a prediction back.
 
 ```
-╭──────────────────────────────── Prompt to OpenAI ─────────────────────────────────╮
-│ From the text below, tell me which class describes it best. From the following    │
-│ list:                                                                             │
-│ - positive                                                                        │
-│ - negative                                                                        │
-│ - neutral                                                                         │
-│                                                                                   │
-│ Text:                                                                             │
-│ """                                                                               │
-│ Oh no!                                                                            │
-│ """                                                                               │
-│                                                                                   │
-│ Answer:                                                                           │
-│                                                                                   │
-╰───────────────────────────────────────────────────────────────────────────────────╯
-╭────────────────────────────── Response from OpenAI ───────────────────────────────╮
-│                                                                                   │
-│ negative                                                                          │
-╰───────────────────────────────────────────────────────────────────────────────────╯
+python -m prodigy ner.openai.correct fashion-openai examples.jsonl "brand,clothing" -F recipes/ner.py
 ```
 
-## Running the Paraphrase Demo 
+Here's what the annotation interface will look like. 
 
-This demo demonstrates how you can generate more training data by having OpenAI generate more relevant examples. This recipe works by 
-declaring a task in natural language together with some examples of stuff you'd like to see more of. In this demo, we're generating fast food orders for a span annotation task.
+![](imgs/ner-correct.png)
 
-You can run the experiment via: 
+You'll notice that the annotation interface comes with values pre-filled, which can speed up annotation.
 
-```
-python -m prodigy spancat.openai.paraphrase openai-spancat-demo paraphrase-examples.jsonl en paraphrase-task.txt -l amount,size,toppings,type,product -F openai-paraphrase.py
-```
+### Curious about the prompt?
 
-If you'd like to understand the prompts and reponses, feel free to use the `--verbose` flag. It'll give extra output that looks like below: 
+If you're curious to see what we send to OpenAI and what we get back, you can run the recipe with the `-v` verbose flag. This will print the prompt and the response in the terminal as traffic is received. (Note that because the requests to the API are batched, you might have to scroll back a bit to find the current prompt.)
 
 ```
-╭───────────────────────────────────────── Prompt to OpenAI ─────────────────────────────────────────╮
-│ The task is to examples of people ordering food at a McDonalds                                     │
-│ Examples should sometimes also include drink orders and side-dishes.                               │
-│ It is preferable to come up with elaborate combinations of items.                                  │
-│ I want more examples of sentences like below.                                                      │
-│                                                                                                    │
-│ Current examples:                                                                                  │
-│                                                                                                    │
-│ - A Big Mac with extra bacon, an order of French fries with spicy ketchup, and a xl mountain dew.  │
-│ - A Quarter Pounder with cheese, a McChicken, and a large sweet tea.                               │
-│ - A Filet-O-Fish, a cheeseburger, and an order of onion rings.                                     │
-│ - A Big Mac with extra pickles, a 10-piece McNuggets, and a large strawberry milkshake.            │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭─────────────────────────────────────── Response from OpenAI ───────────────────────────────────────╮
-│                                                                                                    │
-│ - A Double Cheeseburger, a McFlurry, and a small Coke.                                             │
-│ - A double cheeseburger with extra bacon, a large order of fries, and a Diet Coke.                 │
-│ - A Bacon McDouble, a McChicken, and a large orange juice.                                         │
-│ - A Quarter Pounder Deluxe with extra onions, a McFlurry, and a medium Sprite.                     │
-│ - A Big Mac with extra lettuce, a 6-piece McNuggets, and a large iced                              │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭────────────────────────────────── Prompt to OpenAI ─────────────────────────────╮
+│ From the text below, extract the following entities in the following format:    │
+│ brand: <comma delimited list of strings>                                        │
+│ clothing: <comma delimited list of strings>                                     │
+│                                                                                 │
+│ Text:                                                                           │
+│ """                                                                             │
+│ I'm a total hillfiger fanboy. Gotta love 'em jeans.                             │
+│ """                                                                             │
+│                                                                                 │
+╰─────────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────── Response from OpenAI ───────────────────────────╮
+│                                                                                 │
+│ brand: Hillfiger                                                                │
+│ clothing: Jeans                                                                 │
+╰─────────────────────────────────────────────────────────────────────────────────╯
 ```
+
+This repo also provides templates that you can customise in the `/templates` folder. We use `jinja2` to populate these templates with prompts, but you can choose to create your own template and use it via the `--prompt-path` option. 
+
+## Fetching data upfront 
+
+Right now we are fetching examples from OpenAI while annotating, but we've also included a recipe that can fetch a large batch of examples upfront. 
+
+```
+python -m prodigy ner.openai.fetch examples.jsonl fetched-examples.jsonl "cuisine,place,ingredient" -F recipes/ner.py
+```
+
+This will create a `fetch-examples.jsonl` file that can be loaded with the [ner.manual](https://prodi.gy/docs/recipes#ner-manual) recipe.
+
+## Better Suggestions 
+
+At some point, you might notice OpenAI make a mistake. We noticed it making errors on this example:
+
+```
+{"text": "Caribbean macaroni pie is an awesome baked macaroni and cheese dish. It's popular for a reason. It’s tasty, and pretty cheap too. The Bajan, Guyanese and Trinidadian kitchens all have their own variant though."}
+```
+
+Using this call: 
+
+```
+python -m prodigy ner.openai.correct cooking-openai examples.jsonl "cuisine,place,ingredient" -F recipes/ner.py
+```
+
+It generated this:
+
+![](imgs/mistake.png)
+
+It's a relatively minor mistake, but notice how "Caribbean" didn't get picked up. OpenAI isn't perfect. Mistakes can come in all sorts of shapes and sizes, but we are able to steer the output by adding some more examples to the prompt. 
+
+### Adding Examples to the Prompt
+
+So let's annotate this example so we may add it to the prompt. 
+
+![](imgs/flagged.png)
+
+Note that I'm also flagging this example, which makes it easier for me to retreive it into a file. The command below does just that.
+
+```
+python -m prodigy db-out cooking-openai | grep \"flagged\":true > prompt-examples.jsonl
+```
+
