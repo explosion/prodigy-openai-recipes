@@ -23,7 +23,7 @@ def spacy2hf(fname: Union[str, Path], tokenizer: AutoTokenizer) -> List[BatchEnc
 
     hfdocs = []
     # first, make ids for all labels
-    label2id = {}
+    label2id = {"O": 0}
     for doc in db.get_docs(nlp.vocab):
         labels = []
         toks = []
@@ -34,7 +34,7 @@ def spacy2hf(fname: Union[str, Path], tokenizer: AutoTokenizer) -> List[BatchEnc
                 continue
             ent_label = f"{tok.ent_iob_}-{tok.ent_type_}"
             if ent_label not in label2id:
-                label2id[ent_label] = len(label2id) + 1
+                label2id[ent_label] = len(label2id)
             labels.append(ent_label)
 
         # now do the hf tokenization
@@ -42,15 +42,14 @@ def spacy2hf(fname: Union[str, Path], tokenizer: AutoTokenizer) -> List[BatchEnc
         tokens_hf = tokenizer(toks, truncation=True, is_split_into_words=True)
         labels_hf = []
 
+        # TODO figure out batch index
         for word_id in tokens_hf.word_ids():
             if word_id is None:
                 # for things like [CLS]
                 labels_hf.append(-100)
-            elif labels[word_id] == "O":
-                labels_hf.append(0)
             else:
-                # XXX it seems it's common to only do this for the first sub-token.
-                # May want to add that as an option.
+                # The docs note it's common to assign -100 to subwords after the
+                # first inside an entity, but this does the simpler thing.
                 label = label2id[labels[word_id]]
                 labels_hf.append(label)
         tokens_hf["labels"] = labels_hf
@@ -121,7 +120,6 @@ def run_everything(infile: str, base: str):
     tokenizer = AutoTokenizer.from_pretrained(base)
     dataset, label2id = spacy2hf(infile, tokenizer)
     id2label = {v: k for k, v in label2id.items()}
-    id2label[0] = "O"
     train_bert(base, tokenizer, id2label, dataset, dataset)
 
 
