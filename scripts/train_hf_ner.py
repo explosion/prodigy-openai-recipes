@@ -1,19 +1,42 @@
-import spacy
-from spacy.tokens import DocBin
 from pathlib import Path
+import random
+from typing import List, Union, Tuple
+
+import spacy
+from spacy.tokens import DocBin, Doc
+from thinc.api import fix_random_seed
 
 from transformers import AutoTokenizer
 from transformers.tokenization_utils_base import BatchEncoding
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
 from transformers import DataCollatorForTokenClassification
 import evaluate
-from typing import List, Union
 import numpy as np
 
 import typer
 
-# for some reason this can't just be imported!
+# This can't be imported like a normal library
 seqeval = evaluate.load("seqeval")
+
+
+def split_data(docs: List[BatchEncoding], split: float = 0.8):
+    """Given list of HF docs, split for train/test."""
+
+    # This could be done to the spaCy docs instead, but it's easier to do it to
+    # the HF docs because of the need to create a label/id mapping.
+    random.shuffle(docs)
+
+    train = []
+    test = []
+
+    thresh = int(len(docs) * split)
+
+    for ii, doc in enumerate(docs):
+        if ii < thresh:
+            train.append(doc)
+        else:
+            test.append(doc)
+    return train, test
 
 
 def spacy2hf(fname: Union[str, Path], tokenizer: AutoTokenizer) -> List[BatchEncoding]:
@@ -123,15 +146,20 @@ def train_ner(base_model, tokenizer, label_list, train_data, test_data):
     return trainer
 
 
-def run_everything(infile: str, outdir: str, base: str = "distilbert-base-uncased"):
+def train_hf_ner(infile: str, outdir: str, base: str = "distilbert-base-uncased"):
+    """Fine-tune a HuggingFace NER model using a .spacy file as input."""
+    # prep the data
     tokenizer = AutoTokenizer.from_pretrained(base)
     dataset, label2id = spacy2hf(infile, tokenizer)
+    # handle the mapping
     id2label = {v: k for k, v in label2id.items()}
-    trainer = train_ner(base, tokenizer, id2label, dataset, dataset)
+    train, test = split_data(dataset)
+    # actually train
+    trainer = train_ner(base, tokenizer, id2label, train, test)
     trainer.save_model(outdir)
 
 
 if __name__ == "__main__":
     app = typer.Typer(name="Convert spaCy to HF NER data", no_args_is_help=True)
-    app.command("run_everything")(run_everything)
+    app.command("train_hf_ner")(train_hf_ner)
     app()
