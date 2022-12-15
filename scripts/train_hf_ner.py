@@ -12,6 +12,9 @@ import numpy as np
 
 import typer
 
+# for some reason this can't just be imported!
+seqeval = evaluate.load("seqeval")
+
 
 def spacy2hf(fname: Union[str, Path], tokenizer: AutoTokenizer) -> List[BatchEncoding]:
     """Given a path to a .spacy file and an HF tokenizer, return HF tokens with
@@ -59,26 +62,7 @@ def spacy2hf(fname: Union[str, Path], tokenizer: AutoTokenizer) -> List[BatchEnc
     return hfdocs, label2id
 
 
-def train_bert(base_model, tokenizer, label_list, train_data, test_data):
-    model = AutoModelForTokenClassification.from_pretrained(
-        base_model, num_labels=len(label_list)
-    )
-
-    batch_size = 16
-
-    args = TrainingArguments(
-        f"test-ner",
-        evaluation_strategy="epoch",
-        learning_rate=1e-4,
-        per_device_train_batch_size=batch_size,
-        per_device_eval_batch_size=batch_size,
-        num_train_epochs=30,
-        weight_decay=1e-5,
-    )
-
-    data_collator = DataCollatorForTokenClassification(tokenizer)
-    seqeval = evaluate.load("seqeval")
-
+def build_compute_metrics(label_list):
     def compute_metrics(p):
         predictions, labels = p
         predictions = np.argmax(predictions, axis=2)
@@ -100,6 +84,30 @@ def train_bert(base_model, tokenizer, label_list, train_data, test_data):
             "accuracy": results["overall_accuracy"],
         }
 
+    return compute_metrics
+
+
+def train_ner(base_model, tokenizer, label_list, train_data, test_data):
+    """Fine-tune an existing HF model."""
+    model = AutoModelForTokenClassification.from_pretrained(
+        base_model, num_labels=len(label_list)
+    )
+
+    batch_size = 16
+
+    args = TrainingArguments(
+        f"test-ner",
+        evaluation_strategy="epoch",
+        learning_rate=1e-4,
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=batch_size,
+        num_train_epochs=20,
+        weight_decay=1e-5,
+    )
+
+    data_collator = DataCollatorForTokenClassification(tokenizer)
+    compute_metrics = build_compute_metrics(label_list)
+
     trainer = Trainer(
         model,
         args,
@@ -112,15 +120,15 @@ def train_bert(base_model, tokenizer, label_list, train_data, test_data):
 
     trainer.train()
     trainer.evaluate()
-    # TODO parametrize
-    trainer.save_model("un-ner.model")
+    return trainer
 
 
-def run_everything(infile: str, base: str):
+def run_everything(infile: str, outdir: str, base: str = "distilbert-base-uncased"):
     tokenizer = AutoTokenizer.from_pretrained(base)
     dataset, label2id = spacy2hf(infile, tokenizer)
     id2label = {v: k for k, v in label2id.items()}
-    train_bert(base, tokenizer, id2label, dataset, dataset)
+    trainer = train_ner(base, tokenizer, id2label, dataset, dataset)
+    trainer.save_model(outdir)
 
 
 if __name__ == "__main__":
