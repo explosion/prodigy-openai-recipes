@@ -27,30 +27,6 @@ DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "ner_prompt.j
 load_dotenv()  # take environment variables from .env.
 
 
-def chunkify(stream, nlp, limit=200):
-    """Split the input into chunks, where each chunk is under a certain number
-    of tokens.
-
-    Will split at sentence boundaries. If a single sentence is over the chunk
-    limit, it will be emitted as one chunk.
-
-    If limit is less than zero, the stream will be unmodified.
-    """
-    for example in stream:
-        if limit < 0:
-            yield example
-            continue
-        chunk = []
-        doc = nlp(example["text"])
-        for sent in doc.sents:
-            chunklen = sum(len(ss) for ss in chunk)
-            if chunklen + len(sent) >= limit:
-                yield {**example, "text": " ".join(ss.text for ss in chunk)}
-                chunk = []
-            chunk.append(sent)
-        yield {**example, "text": " ".join(ss.text for ss in chunk)}
-
-
 class OpenAISuggester:
     prompt_template: jinja2.Template
     model: str
@@ -58,6 +34,10 @@ class OpenAISuggester:
     max_examples: int
     chunk_size: int
     verbose: bool
+    openai_temperature: int
+    openai_max_tokens: int
+    openai_timeout_s: int
+    openai_n: int
     examples: List[Dict]
 
     def __init__(
@@ -67,20 +47,29 @@ class OpenAISuggester:
         labels: List[str],
         max_examples: int,
         chunk_size: int,
+        openai_temperature: int = 0,
+        openai_max_tokens: int = 500,
+        openai_timeout_s: int = 1,
+        openai_n: int = 1,
         verbose: bool = False,
     ):
         self.prompt_template = prompt_template
         self.model = model
         self.labels = labels
         self.max_examples = max_examples
-        self.chunk_size = chunk_size
         self.verbose = verbose
+        self.chunk_size = chunk_size
         self.examples = []
+        self.openai_temperature = openai_temperature
+        self.openai_max_tokens = openai_max_tokens
+        self.openai_timeout_s = openai_timeout_s
+        self.openai_n = openai_n
 
     def __call__(
         self, stream: Iterable[Dict], *, nlp: Language, batch_size: int
     ) -> Iterable[Dict]:
-        stream = chunkify(stream, nlp=nlp, limit=self.chunk_size)
+        if self.chunk_size >= 1:
+            stream = _segment_inputs(stream, nlp=nlp, limit=self.chunk_size)
         stream = self.stream_suggestions(stream, batch_size=batch_size)
         stream = self.format_suggestions(stream, nlp=nlp)
         return stream
@@ -176,12 +165,12 @@ class OpenAISuggester:
                 json={
                     "model": self.model,
                     "prompt": prompts,
-                    "temperature": 0,
-                    "max_tokens": 500,
+                    "temperature": self.openai_temperature,
+                    "max_tokens": self.openai_max_tokens,
                 },
             ),
-            n=1,
-            timeout_s=1,
+            n=self.openai_n,
+            timeout_s=self.openai_timeout_s,
         )
         r.raise_for_status()
         responses = r.json()
@@ -240,7 +229,8 @@ def ner_openai_correct(
 ):
     examples = _read_examples(examples_path)
     nlp = spacy.blank(lang)
-    nlp.add_pipe("sentencizer")
+    if chunk_size >= 1:
+        nlp.add_pipe("sentencizer")
     openai = OpenAISuggester(
         model=model,
         labels=labels,
@@ -286,6 +276,7 @@ def ner_openai_correct(
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
+    chunk_size=("Chunk size (sentence token limit)", "option", "c", int),
     verbose=("Print extra information to terminal", "option", "flag", bool),
 )
 def ner_openai_fetch(
@@ -295,6 +286,7 @@ def ner_openai_fetch(
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
+    chunk_size: int = 200,
     examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
     max_examples: int = 2,
@@ -310,18 +302,51 @@ def ner_openai_fetch(
     """
     examples = _read_examples(examples_path)
     nlp = spacy.blank(lang)
+    if chunk_size >= 1:
+        nlp.add_pipe("sentencizer")
     openai = OpenAISuggester(
         model=model,
         labels=labels,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
         verbose=verbose,
+        chunk_size=chunk_size,
     )
     for eg in examples:
         openai.add_example(eg)
     stream = list(srsly.read_jsonl(input_path))
     stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
     srsly.write_jsonl(output_path, stream)
+
+
+def _segment_inputs(
+    stream: Iterable[Dict], nlp: Language, limit: int
+) -> Iterable[Dict]:
+    """Split the input into chunks, where each chunk is under a certain number
+    of tokens.
+
+    Will split at sentence boundaries. If a single sentence is over the chunk
+    limit, it will be emitted as one chunk.
+
+    If limit is less than zero, the stream will be unmodified.
+    """
+    if limit < 0:
+        return stream
+    for example in stream:
+        # Make sure we don't keep the tokens field in the example, as it'll be wrong.
+        example = {k: v for k, v in example.items() if k != "tokens"}
+        chunk = []
+        chunk_size = 0
+        doc = nlp(example["text"])
+        for sent in doc.sents:
+            chunk_size += len(sent)
+            if chunk and chunk_size + len(sent) >= limit:
+                yield {**example, "text": " ".join(chunk)}
+                chunk = []
+                chunk_size = 0
+            chunk.append(sent.text)
+        if chunk:
+            yield {**example, "text": " ".join(chunk)}
 
 
 def _read_examples(path: Optional[Path]) -> List[Dict]:
@@ -383,16 +408,27 @@ def _batch_sequence(items: Iterable[_ItemT], batch_size: int) -> Iterable[List[_
 
 
 def _find_substrings(
-    text: str, substrings: List[str], *, case_sensitive=False
+    text: str,
+    substrings: List[str],
+    *,
+    case_sensitive=False,
+    single_match: bool = False,
 ) -> List[Tuple[int, int]]:
-    """Given a list of substrings, find their character start and end positions in a text. The substrings are assumed to be sorted by the order of their occurrence in the text."""
+    """Given a list of substrings, find their character start and end positions in a text. The substrings are assumed to be sorted by the order of their occurrence in the text.
+
+    text: The text to search over.
+    substrings: The strings to find.
+    case_sensitive: Whether to search without case sensitivity.
+    single_match: If false, allow one substring to match multiple times in the text.
+    """
     if not case_sensitive:
         text = text.lower()
         substrings = [s.lower() for s in substrings]
     offsets = []
+    search_from = 0
     for substring in substrings:
-        # This needs to be reset for each substring as part of handling multiple mentions.
-        search_from = 0
+        if not single_match:
+            search_from = 0
         if substring == "":
             continue
         # Find from an offset, to handle phrases that
@@ -405,81 +441,3 @@ def _find_substrings(
             offsets.append((start, end))
             search_from = end
     return offsets
-
-
-def test_multiple_substrings():
-    text = "The Blargs is the debut album by rock band The Blargs."
-    substrings = ["The Blargs", "rock"]
-    res = _find_substrings(text, substrings)
-    assert len(res) == 3, "Didn't find the right number of occurrences"
-
-
-def test_template_no_examples():
-    text = "David Bowie lived in Berlin in the 1970s."
-    labels = ["PERSON", "PLACE", "PERIOD"]
-    examples = []
-    path = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
-    template = _load_template(path)
-    prompt = template.render(text=text, labels=labels, examples=examples)
-    assert (
-        prompt
-        == f"""
-From the text below, extract the following entities in the following format:
-PERSON: <comma delimited list of strings>
-PLACE: <comma delimited list of strings>
-PERIOD: <comma delimited list of strings>
-
-Text:
-\"\"\"
-David Bowie lived in Berlin in the 1970s.
-\"\"\"
-""".lstrip()
-    )
-
-
-def test_template_two_examples():
-    text = "David Bowie lived in Berlin in the 1970s."
-    labels = ["PERSON", "PLACE", "PERIOD"]
-    examples = [
-        {"text": "New York is a large city.", "entities": [["PLACE", ["New York"]]]},
-        {
-            "text": "David Hasslehoff and Helena Fischer are big in Germany.",
-            "entities": [
-                ["PERSON", ["David Hasslehoff", "Helena Fischer"]],
-                ["PLACE", ["Germany"]],
-            ],
-        },
-    ]
-    path = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
-    template = _load_template(path)
-    prompt = template.render(text=text, labels=labels, examples=examples)
-    assert (
-        prompt
-        == f"""
-From the text below, extract the following entities in the following format:
-PERSON: <comma delimited list of strings>
-PLACE: <comma delimited list of strings>
-PERIOD: <comma delimited list of strings>
-
-Text:
-\"\"\"
-David Bowie lived in Berlin in the 1970s.
-\"\"\"
-
-For example:
-
-Text:
-\"\"\"
-New York is a large city.
-\"\"\"
-PLACE: New York
-
-Text:
-\"\"\"
-David Hasslehoff and Helena Fischer are big in Germany.
-\"\"\"
-PERSON: David Hasslehoff, Helena Fischer
-PLACE: Germany
-
-""".lstrip()
-    )
