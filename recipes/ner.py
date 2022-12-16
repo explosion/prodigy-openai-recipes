@@ -333,8 +333,8 @@ def _segment_inputs(
     if limit < 0:
         return stream
     for example in stream:
-        # Make sure we don't keep the tokens field in the example, as it'll be wrong.
-        example = {k: v for k, v in example.items() if k != "tokens"}
+        # Make sure we don't keep the tokens and spans fields in the example, as it'll be wrong.
+        example = {k: v for k, v in example.items() if k not in ("tokens", "spans")}
         chunk = []
         chunk_size = 0
         doc = nlp(example["text"])
@@ -424,6 +424,11 @@ def _find_substrings(
     if not case_sensitive:
         text = text.lower()
         substrings = [s.lower() for s in substrings]
+    if not single_match:
+        # If we're going to allow each substring to match
+        # multiple times, we have to make sure we don't have
+        # duplicate substrings.
+        substrings = list(set(substrings))
     offsets = []
     search_from = 0
     for substring in substrings:
