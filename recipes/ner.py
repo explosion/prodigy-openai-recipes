@@ -27,11 +27,36 @@ DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "ner_prompt.j
 load_dotenv()  # take environment variables from .env.
 
 
+def chunkify(stream, nlp, limit=200):
+    """Split the input into chunks, where each chunk is under a certain number
+    of tokens.
+
+    Will split at sentence boundaries. If a single sentence is over the chunk
+    limit, it will be emitted as one chunk.
+
+    If limit is less than zero, the stream will be unmodified.
+    """
+    for example in stream:
+        if limit < 0:
+            yield example
+            continue
+        chunk = []
+        doc = nlp(example["text"])
+        for sent in doc.sents:
+            chunklen = sum(len(ss) for ss in chunk)
+            if chunklen + len(sent) >= limit:
+                yield {**example, "text": " ".join(ss.text for ss in chunk)}
+                chunk = []
+            chunk.append(sent)
+        yield {**example, "text": " ".join(ss.text for ss in chunk)}
+
+
 class OpenAISuggester:
     prompt_template: jinja2.Template
     model: str
     labels: List[str]
     max_examples: int
+    chunk_size: int
     verbose: bool
     examples: List[Dict]
 
@@ -41,12 +66,14 @@ class OpenAISuggester:
         model: str,
         labels: List[str],
         max_examples: int,
+        chunk_size: int,
         verbose: bool = False,
     ):
         self.prompt_template = prompt_template
         self.model = model
         self.labels = labels
         self.max_examples = max_examples
+        self.chunk_size = chunk_size
         self.verbose = verbose
         self.examples = []
 
@@ -54,6 +81,7 @@ class OpenAISuggester:
         self, stream: Iterable[Dict], *, nlp: Language, batch_size: int
     ) -> Iterable[Dict]:
         stream = self.stream_suggestions(stream, batch_size=batch_size)
+        stream = chunkify(stream, nlp=nlp, limit=self.chunk_size)
         stream = self.format_suggestions(stream, nlp=nlp)
         return stream
 
@@ -194,6 +222,7 @@ class OpenAISuggester:
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
+    chunk_size=("Chunk size (sentence token limit)", "option", "c", int),
     verbose=("Print extra information to terminal", "flag", "v", bool),
 )
 def ner_openai_correct(
@@ -203,6 +232,7 @@ def ner_openai_correct(
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
+    chunk_size: int = 200,
     examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
     max_examples: int = 2,
@@ -210,11 +240,13 @@ def ner_openai_correct(
 ):
     examples = _read_examples(examples_path)
     nlp = spacy.blank(lang)
+    nlp.add_pipe("sentencizer")
     openai = OpenAISuggester(
         model=model,
         labels=labels,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
+        chunk_size=chunk_size,
         verbose=verbose,
     )
     for eg in examples:
