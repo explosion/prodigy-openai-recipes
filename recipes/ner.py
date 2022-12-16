@@ -158,20 +158,25 @@ class OpenAISuggester:
             "OpenAI-Organization": os.getenv("OPENAI_ORG"),
             "Content-Type": "application/json",
         }
-        r = _retry429(
-            lambda: httpx.post(
-                "https://api.openai.com/v1/completions",
-                headers=headers,
-                json={
-                    "model": self.model,
-                    "prompt": prompts,
-                    "temperature": self.openai_temperature,
-                    "max_tokens": self.openai_max_tokens,
-                },
-            ),
-            n=self.openai_n,
-            timeout_s=self.openai_timeout_s,
-        )
+        try:
+            r = _retry429(
+                lambda: httpx.post(
+                    "https://api.openai.com/v1/completions",
+                    headers=headers,
+                    json={
+                        "model": self.model,
+                        "prompt": prompts,
+                        "temperature": self.openai_temperature,
+                        "max_tokens": self.openai_max_tokens,
+                    },
+                ),
+                n=self.openai_n,
+                timeout_s=self.openai_timeout_s,
+            )
+        except AttributeError:
+            raise RuntimeError("Could not fetch the results from api.openai.com. "
+                               "Did you store the ORG and KEY values in .env? "
+                               "If you don't have API access yet - visit https://beta.openai.com/account/api-keys")
         r.raise_for_status()
         responses = r.json()
         return [responses["choices"][i]["text"] for i in range(len(prompts))]
