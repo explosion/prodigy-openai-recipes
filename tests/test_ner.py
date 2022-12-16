@@ -6,9 +6,9 @@ def test_multiple_substrings():
     text = "The Blargs is the debut album by rock band The Blargs."
     substrings = ["The Blargs", "rock"]
     res = _find_substrings(text, substrings, single_match=False)
-    assert len(res) == 3, res
+    assert res == [(0, 10), (43, 53), (33, 37)]
     res = _find_substrings(text, substrings, single_match=True)
-    assert len(res) == 2, res
+    assert res == [(0, 10), (43, 53)]
 
 
 def test_template_no_examples():
