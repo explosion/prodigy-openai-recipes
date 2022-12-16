@@ -104,13 +104,34 @@ It's a relatively minor mistake, but notice how "Caribbean" didn't get picked up
 
 ### Adding Examples to the Prompt
 
-So let's annotate this example so we may add it to the prompt. 
+So let's annotate this example so we may add it to the prompt.
 
 ![](imgs/flagged.png)
 
-Note that I'm also flagging this example, which makes it easier for me to retreive it into a file. The command below does just that.
+Any flagged examples will automatically be picked up to be added to the prompt. Also note that makes it easier for me to retreive the example into a file. The command below does just that.
 
 ```
 python -m prodigy db-out cooking-openai | grep \"flagged\":true > prompt-examples.jsonl
 ```
 
+## Training a Model
+
+After you've annotated enough examples - say 100 to start - you can try training a model. We've included a script to automatically train a model using HuggingFace's Transformers library. 
+
+First, export your data to spaCy's format with Prodigy - while we aren't training a spaCy model, the data will be easy to convert for HuggingFace.
+
+```
+python -m prodigy data-to-spacy cooking-openai data/ -ns 0
+```
+
+This will create the file `data/train.spacy` with your annotated documents. You'll see a warning about not creating evaluation data, but that's OK because our training script will create it.
+
+To train the model, run the training script like this:
+
+```
+python scripts/train_hf_ner.py data/train.spacy ner-model
+```
+
+This will run for a while and train your first model. With just 100 annotations performance may not be great, but you should see it improve over each epoch, which is a sign that your data is consistent and you're on the right track. The resulting model will be saved to the `ner-model/` directory. 
+
+From here all you have to do is continue to iterate on your model until you're happy with it.
