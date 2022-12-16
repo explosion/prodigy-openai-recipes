@@ -108,7 +108,7 @@ So let's annotate this example so we may add it to the prompt.
 
 ![](imgs/flagged.png)
 
-Any flagged examples will automatically be picked up to be added to the prompt. Also note that makes it easier for me to retreive the example into a file. The command below does just that.
+Any flagged examples will automatically be picked up to be added to the prompt. Also note that makes it easier to retrieve the example into a file. The command below does just that.
 
 ```
 python -m prodigy db-out cooking-openai | grep \"flagged\":true > prompt-examples.jsonl
