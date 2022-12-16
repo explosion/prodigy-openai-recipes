@@ -80,8 +80,8 @@ class OpenAISuggester:
     def __call__(
         self, stream: Iterable[Dict], *, nlp: Language, batch_size: int
     ) -> Iterable[Dict]:
-        stream = self.stream_suggestions(stream, batch_size=batch_size)
         stream = chunkify(stream, nlp=nlp, limit=self.chunk_size)
+        stream = self.stream_suggestions(stream, batch_size=batch_size)
         stream = self.format_suggestions(stream, nlp=nlp)
         return stream
 
