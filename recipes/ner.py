@@ -381,7 +381,7 @@ def _read_examples(path: Optional[Path]) -> List[Dict]:
         return cast(List[Dict], srsly.read_json(path))
     else:
         msg.fail(
-            "The --examples-path parameter expects a .yml, .yaml or .json file.",
+            "The --examples-path (-e) parameter expects a .yml, .yaml or .json file.",
             exits=1,
         )
 
@@ -390,6 +390,11 @@ def _load_template(path: Path) -> jinja2.Template:
     # I know jinja has a lot of complex file loading stuff,
     # but we're not using the inheritence etc that makes
     # that stuff worthwhile.
+    if not path.suffix == "jinja2":
+        msg.fail(
+            "The --prompt-path (-p) parameter expects a .jinja2 file.",
+            exits=1,
+        )
     with path.open("r", encoding="utf8") as file_:
         text = file_.read()
     return jinja2.Template(text)
