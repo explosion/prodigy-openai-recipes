@@ -64,6 +64,8 @@ class OpenAISuggester:
         self.openai_max_tokens = openai_max_tokens
         self.openai_timeout_s = openai_timeout_s
         self.openai_n = openai_n
+        # sanity check for API access and model availability.
+        self._ensure_valid_access()
 
     def __call__(
         self, stream: Iterable[Dict], *, nlp: Language, batch_size: int
@@ -198,6 +200,27 @@ class OpenAISuggester:
             )
             msg.fail(m, exits=1)
         return api_key, org
+
+    def _ensure_valid_access(self):
+        api_key, org = self._get_env_vars()
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "OpenAI-Organization": org,
+        }
+        r = _retry429(
+            lambda: httpx.get(
+                "https://api.openai.com/v1/models",
+                headers=headers,
+            ),
+            n=self.openai_n,
+            timeout_s=self.openai_timeout_s,
+        )
+        r.raise_for_status()
+        response = r.json()["data"]
+        models = [response[i]["id"] for i in range(len(response))]
+        if self.model not in models:
+            e = f"The specified model '{self.model}' is not available. Choices are: {sorted(set(models))}"
+            msg.fail(e, exits=1)
 
     def _parse_response(self, text: str) -> List[Tuple[str, List[str]]]:
         """Interpret OpenAI's NER response. It's supposed to be
@@ -390,7 +413,7 @@ def _load_template(path: Path) -> jinja2.Template:
     # I know jinja has a lot of complex file loading stuff,
     # but we're not using the inheritence etc that makes
     # that stuff worthwhile.
-    if not path.suffix == "jinja2":
+    if not path.suffix == ".jinja2":
         msg.fail(
             "The --prompt-path (-p) parameter expects a .jinja2 file.",
             exits=1,
