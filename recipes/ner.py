@@ -179,22 +179,25 @@ class OpenAISuggester:
 
     def _get_env_vars(self) -> Tuple[str, str]:
         # Fetch and check the key
-        api_key = os.getenv('OPENAI_KEY')
+        api_key = os.getenv("OPENAI_KEY")
         if api_key is None:
-            m = "Could not find the API key to access the openai API. Ensure you have an API key " \
-                "set up via https://beta.openai.com/account/api-keys, then make it available as " \
+            m = (
+                "Could not find the API key to access the openai API. Ensure you have an API key "
+                "set up via https://beta.openai.com/account/api-keys, then make it available as "
                 "an environment variable 'OPENAI_KEY', for instance in a .env file."
+            )
             msg.fail(m, exits=1)
         # Fetch and check the org
         org = os.getenv("OPENAI_ORG")
         if org is None:
-            m = "Could not find the organisation to access the openai API. Ensure you have an API key " \
-                "set up via https://beta.openai.com/account/api-keys, obtain its organization ID 'org-XXX' " \
-                "via https://beta.openai.com/account/org-settings, then make it available as " \
+            m = (
+                "Could not find the organisation to access the openai API. Ensure you have an API key "
+                "set up via https://beta.openai.com/account/api-keys, obtain its organization ID 'org-XXX' "
+                "via https://beta.openai.com/account/org-settings, then make it available as "
                 "an environment variable 'OPENAI_ORG', for instance in a .env file."
+            )
             msg.fail(m, exits=1)
         return api_key, org
-
 
     def _parse_response(self, text: str) -> List[Tuple[str, List[str]]]:
         """Interpret OpenAI's NER response. It's supposed to be
@@ -377,7 +380,10 @@ def _read_examples(path: Optional[Path]) -> List[Dict]:
     elif path.suffix == ".json":
         return cast(List[Dict], srsly.read_json(path))
     else:
-        raise ValueError("The --examples-path parameter expects a .yml, .yaml or .json file.")
+        msg.fail(
+            "The --examples-path parameter expects a .yml, .yaml or .json file.",
+            exits=1,
+        )
 
 
 def _load_template(path: Path) -> jinja2.Template:
