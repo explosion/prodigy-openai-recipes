@@ -11,7 +11,7 @@ import srsly
 from dotenv import load_dotenv
 from spacy.language import Language
 import prodigy
-import prodigy.components.preprocess
+from prodigy.components.preprocess import split_sentences, add_tokens
 import prodigy.util
 from prodigy.util import msg
 import prodigy.components.db
@@ -32,7 +32,7 @@ class OpenAISuggester:
     model: str
     labels: List[str]
     max_examples: int
-    chunk_size: int
+    segment: bool
     verbose: bool
     openai_temperature: int
     openai_max_tokens: int
@@ -46,7 +46,7 @@ class OpenAISuggester:
         model: str,
         labels: List[str],
         max_examples: int,
-        chunk_size: int,
+        segment: bool,
         openai_temperature: int = 0,
         openai_max_tokens: int = 500,
         openai_timeout_s: int = 1,
@@ -58,7 +58,7 @@ class OpenAISuggester:
         self.labels = labels
         self.max_examples = max_examples
         self.verbose = verbose
-        self.chunk_size = chunk_size
+        self.segment = segment
         self.examples = []
         self.openai_temperature = openai_temperature
         self.openai_max_tokens = openai_max_tokens
@@ -70,8 +70,9 @@ class OpenAISuggester:
     def __call__(
         self, stream: Iterable[Dict], *, nlp: Language, batch_size: int
     ) -> Iterable[Dict]:
-        if self.chunk_size >= 1:
-            stream = _segment_inputs(stream, nlp=nlp, limit=self.chunk_size)
+        if self.segment:
+            stream = split_sentences(nlp, stream)
+
         stream = self.stream_suggestions(stream, batch_size=batch_size)
         stream = self.format_suggestions(stream, nlp=nlp)
         return stream
@@ -118,7 +119,7 @@ class OpenAISuggester:
     def format_suggestions(
         self, stream: Iterable[Dict], *, nlp: Language
     ) -> Iterable[Dict]:
-        stream = prodigy.components.preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
+        stream = add_tokens(nlp, stream, skip=True)  # type: ignore
         for example in stream:
             example = copy.deepcopy(example)
             # This tokenizes the text with spaCy, so that the token boundaries can be used
@@ -264,7 +265,7 @@ class OpenAISuggester:
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
-    chunk_size=("Chunk size (sentence token limit)", "option", "c", int),
+    unsegmented=("Don't split sentences", "flag", "U", bool),
     verbose=("Print extra information to terminal", "flag", "v", bool),
 )
 def ner_openai_correct(
@@ -274,7 +275,7 @@ def ner_openai_correct(
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
-    chunk_size: int = 200,
+    unsegmented: bool = False,
     examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
     max_examples: int = 2,
@@ -282,14 +283,14 @@ def ner_openai_correct(
 ):
     examples = _read_examples(examples_path)
     nlp = spacy.blank(lang)
-    if chunk_size >= 1:
+    if not unsegmented:
         nlp.add_pipe("sentencizer")
     openai = OpenAISuggester(
         model=model,
         labels=labels,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
-        chunk_size=chunk_size,
+        segment=not unsegmented,
         verbose=verbose,
     )
     for eg in examples:
@@ -329,7 +330,7 @@ def ner_openai_correct(
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
-    chunk_size=("Chunk size (sentence token limit)", "option", "c", int),
+    unsegmented=("Don't split sentences", "flag", "U", bool),
     verbose=("Print extra information to terminal", "option", "flag", bool),
 )
 def ner_openai_fetch(
@@ -339,7 +340,7 @@ def ner_openai_fetch(
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
-    chunk_size: int = 200,
+    unsegmented: bool = False,
     examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
     max_examples: int = 2,
@@ -355,7 +356,7 @@ def ner_openai_fetch(
     """
     examples = _read_examples(examples_path)
     nlp = spacy.blank(lang)
-    if chunk_size >= 1:
+    if not unsegmented:
         nlp.add_pipe("sentencizer")
     openai = OpenAISuggester(
         model=model,
@@ -363,43 +364,13 @@ def ner_openai_fetch(
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
         verbose=verbose,
-        chunk_size=chunk_size,
+        segment=not unsegmented,
     )
     for eg in examples:
         openai.add_example(eg)
     stream = list(srsly.read_jsonl(input_path))
     stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
     srsly.write_jsonl(output_path, stream)
-
-
-def _segment_inputs(
-    stream: Iterable[Dict], nlp: Language, limit: int
-) -> Iterable[Dict]:
-    """Split the input into chunks, where each chunk is under a certain number
-    of tokens.
-
-    Will split at sentence boundaries. If a single sentence is over the chunk
-    limit, it will be emitted as one chunk.
-
-    If limit is less than zero, the stream will be unmodified.
-    """
-    if limit < 0:
-        return stream
-    for example in stream:
-        # Make sure we don't keep the tokens and spans fields in the example, as it'll be wrong.
-        example = {k: v for k, v in example.items() if k not in ("tokens", "spans")}
-        chunk = []
-        chunk_size = 0
-        doc = nlp(example["text"])
-        for sent in doc.sents:
-            chunk_size += len(sent)
-            if chunk and chunk_size + len(sent) >= limit:
-                yield {**example, "text": " ".join(chunk)}
-                chunk = []
-                chunk_size = 0
-            chunk.append(sent.text)
-        if chunk:
-            yield {**example, "text": " ".join(chunk)}
 
 
 def _read_examples(path: Optional[Path]) -> List[Dict]:
