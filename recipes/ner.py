@@ -86,9 +86,32 @@ class OpenAISuggester:
     def add_example(self, example: Dict) -> None:
         """Add an example for use in the prompts. Examples are pruned to the most recent max_examples."""
         if self.max_examples:
-            self.examples.append(example)
+            if example.get("answer", "") == "accept":
+                example = self._convert_from_prodigy_format(example)
+                # Note that this really shouldn't happen - it'll make Prodigy give a "could not save annotations" warning
+                assert "text" in example.keys()
+                assert "entities" in example.keys()
+                self.examples.append(example)
         if len(self.examples) >= self.max_examples:
             self.examples = self.examples[-self.max_examples :]
+
+    def _convert_from_prodigy_format(self, example: Dict) -> Dict:
+        entities_by_label = {}
+        assert "text" in example.keys()
+        full_text = example["text"]
+        for span in example.get("spans", []):
+            label = span["label"]
+            mention = full_text[int(span["start"]):int(span["end"])]
+            l_list = entities_by_label.get(label, [])
+            l_list.append(mention)
+            entities_by_label[label] = l_list
+
+        new_example = example.copy()
+        new_example["entities"] = [
+            [label, [mention for mention in entities_by_label[label]]]
+            for label in entities_by_label.keys()
+        ]
+        return new_example
 
     def stream_suggestions(
         self, stream: Iterable[Dict], batch_size: int
@@ -389,7 +412,7 @@ def _read_examples(path: Optional[Path]) -> List[Dict]:
 
 def _load_template(path: Path) -> jinja2.Template:
     # I know jinja has a lot of complex file loading stuff,
-    # but we're not using the inheritence etc that makes
+    # but we're not using the inheritance etc that makes
     # that stuff worthwhile.
     if not path.suffix == ".jinja2":
         msg.fail(
