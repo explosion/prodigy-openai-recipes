@@ -8,7 +8,20 @@ def test_multiple_substrings():
     res = _find_substrings(text, substrings, single_match=False)
     assert res == [(0, 10), (43, 53), (33, 37)]
     res = _find_substrings(text, substrings, single_match=True)
-    assert res == [(0, 10), (43, 53)]
+    assert res == [(0, 10), (33, 37)]
+
+
+def test_substrings_case():
+    text = "A, a, B, b, a,b,c,d"
+    substrings = ["a,"]
+    res = _find_substrings(text, substrings, single_match=False, case_sensitive=True)
+    assert res == [(3, 5), (12, 14)]
+    res = _find_substrings(text, substrings, single_match=False, case_sensitive=False)
+    assert res == [(0, 2), (3, 5), (12, 14)]
+    res = _find_substrings(text, substrings, single_match=True, case_sensitive=True)
+    assert res == [(3, 5)]
+    res = _find_substrings(text, substrings, single_match=True, case_sensitive=False)
+    assert res == [(0, 2)]
 
 
 def test_template_no_examples():
