@@ -56,7 +56,7 @@ class PromptExample:
         entities_by_label = defaultdict(list)
         full_text = example["text"]
         for span in example.get("spans", []):
-            mention = full_text[int(span["start"]) : int(span["end"]) + 1]
+            mention = full_text[int(span["start"]) : int(span["end"])]
             entities_by_label[span["label"]].append(mention)
 
         return cls(text=full_text, entities=entities_by_label)
