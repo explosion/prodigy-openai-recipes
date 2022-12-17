@@ -89,6 +89,7 @@ class OpenAISuggester:
             if example.get("answer", "") == "accept":
                 example = self._convert_from_prodigy_format(example)
                 # Note that this really shouldn't happen - it'll make Prodigy give a "could not save annotations" warning
+                # But if we don't assert, we get a silent failure.
                 assert "text" in example.keys()
                 assert "entities" in example.keys()
                 self.examples.append(example)
@@ -101,7 +102,7 @@ class OpenAISuggester:
         full_text = example["text"]
         for span in example.get("spans", []):
             label = span["label"]
-            mention = full_text[int(span["start"]):int(span["end"])]
+            mention = full_text[int(span["start"]) : int(span["end"])]
             l_list = entities_by_label.get(label, [])
             l_list.append(mention)
             entities_by_label[label] = l_list
