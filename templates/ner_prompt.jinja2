@@ -18,10 +18,10 @@ For example:
 {%- for example in examples -%}
 Text:
 """
-{{ example["text"] }}
+{{ example.text }}
 """
 {# whitespace #}
-{%- for label, substrings in example["entities"] -%}
+{%- for label, substrings in example.entities.items() -%}
 {{ label }}: {{ ", ".join(substrings) }}
 {# whitespace #}
 {%- endfor -%}

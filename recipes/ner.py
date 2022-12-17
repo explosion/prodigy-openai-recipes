@@ -4,6 +4,9 @@ from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Tuple, TypeVar, cast, Optional
 import time
 import tqdm
+import sys
+from dataclasses import dataclass
+from collections import defaultdict
 
 import httpx
 import spacy
@@ -27,6 +30,38 @@ DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "ner_prompt.j
 load_dotenv()  # take environment variables from .env.
 
 
+@dataclass
+class PromptExample:
+    """An example to be passed into an OpenAI NER prompt."""
+
+    text: str
+    entities: Dict[str, List[str]]
+
+    @staticmethod
+    def is_flagged(example: Dict) -> bool:
+        """Check whether a Prodigy example is flagged for use
+        in the prompt."""
+
+        return (
+            example.get("flagged") == True
+            and example.get("answer") == "accept"
+            and "text" in example
+        )
+
+    @classmethod
+    def from_prodigy(cls, example: Dict) -> "PromptExample":
+        """Create a prompt example from Prodigy's format."""
+        if "text" not in example:
+            raise ValueError("Cannot make PromptExample without text")
+        entities_by_label = defaultdict(list)
+        full_text = example["text"]
+        for span in example.get("spans", []):
+            mention = full_text[int(span["start"]) : int(span["end"]) + 1]
+            entities_by_label[span["label"]].append(mention)
+
+        return cls(text=full_text, entities=entities_by_label)
+
+
 class OpenAISuggester:
     prompt_template: jinja2.Template
     model: str
@@ -38,7 +73,7 @@ class OpenAISuggester:
     openai_max_tokens: int
     openai_timeout_s: int
     openai_n: int
-    examples: List[Dict]
+    examples: List[PromptExample]
 
     def __init__(
         self,
@@ -79,11 +114,11 @@ class OpenAISuggester:
 
     def update(self, examples: Iterable[Dict]) -> float:
         for eg in examples:
-            if eg.get("flagged"):
-                self.add_example(eg)
+            if PromptExample.is_flagged(eg):
+                self.add_example(PromptExample.from_prodigy(eg))
         return 0.0
 
-    def add_example(self, example: Dict) -> None:
+    def add_example(self, example: PromptExample) -> None:
         """Add an example for use in the prompts. Examples are pruned to the most recent max_examples."""
         if self.max_examples:
             self.examples.append(example)
@@ -146,7 +181,7 @@ class OpenAISuggester:
             yield example
 
     def _get_ner_prompt(
-        self, text: str, labels: List[str], examples: List[Dict]
+        self, text: str, labels: List[str], examples: List[PromptExample]
     ) -> str:
         """Generate a prompt for named entity annotation.
 
@@ -281,7 +316,7 @@ def ner_openai_correct(
     max_examples: int = 2,
     verbose: bool = False,
 ):
-    examples = _read_examples(examples_path)
+    examples = _read_prompt_examples(examples_path)
     nlp = spacy.blank(lang)
     if not unsegmented:
         nlp.add_pipe("sentencizer")
@@ -300,8 +335,8 @@ def ner_openai_correct(
         db_examples = db.get_dataset(dataset)
         if db_examples:
             for eg in db_examples:
-                if eg.get("flagged"):
-                    openai.add_example(eg)
+                if PromptExample.is_flagged(eg):
+                    openai.add_example(PromptExample.from_prodigy(eg))
     stream = cast(Iterable[Dict], srsly.read_jsonl(filepath))
     return {
         "dataset": dataset,
@@ -354,7 +389,7 @@ def ner_openai_fetch(
     wait on the OpenAI queries. The downside is that you can't flag examples to be integrated
     into the prompt during the annotation, unlike the ner.openai.correct recipe.
     """
-    examples = _read_examples(examples_path)
+    examples = _read_prompt_examples(examples_path)
     nlp = spacy.blank(lang)
     if not unsegmented:
         nlp.add_pipe("sentencizer")
@@ -373,18 +408,20 @@ def ner_openai_fetch(
     srsly.write_jsonl(output_path, stream)
 
 
-def _read_examples(path: Optional[Path]) -> List[Dict]:
+def _read_prompt_examples(path: Optional[Path]) -> List[PromptExample]:
     if path is None:
         return []
     elif path.suffix in (".yml", ".yaml"):
         return _read_yaml_examples(path)
     elif path.suffix == ".json":
-        return cast(List[Dict], srsly.read_json(path))
+        data = srsly.read_json(path)
+        assert isinstance(data, list)
+        return [PromptExample(**eg) for eg in data]
     else:
         msg.fail(
-            "The --examples-path (-e) parameter expects a .yml, .yaml or .json file.",
-            exits=1,
+            "The --examples-path (-e) parameter expects a .yml, .yaml or .json file."
         )
+        sys.exit(-1)
 
 
 def _load_template(path: Path) -> jinja2.Template:
@@ -417,12 +454,14 @@ def _retry429(
     return r
 
 
-def _read_yaml_examples(path: Path) -> List[Dict]:
+def _read_yaml_examples(path: Path) -> List[PromptExample]:
     data = srsly.read_yaml(path)
+    if not isinstance(data, list):
+        msg.fail("Cannot interpret prompt examples from yaml", exits=True)
     assert isinstance(data, list)
     output = []
     for item in data:
-        output.append({"text": item["text"], "entities": item["entities"].items()})
+        output.append(PromptExample(text=item["text"], entities=item["entities"]))
     return output
 
 
