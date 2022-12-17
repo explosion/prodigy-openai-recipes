@@ -4,17 +4,21 @@ An internal repo to share code for OpenAI recipes.
 
 ## Setup and Install 
 
-Before running any demos, you need to make sure that the `.env` file contains the right keys. 
+Make sure to [install Prodigy](https://prodi.gy/docs/install) as well as a few additional Python dependencies:
+```
+python -m pip install prodigy -f https://XXXX-XXXX-XXXX-XXXX@download.prodi.gy
+python -m pip install -r requirements.txt
+```
+With `XXXX-XXXX-XXXX-XXXX` being your personal Prodigy license key.
+
+Then, create a new API key from [https://beta.openai.com/account/api-keys](openai.com) or fetch an existing 
+one. Record the secret key as well as the [organization key](https://beta.openai.com/account/org-settings)  
+and make sure these are available as environmental variables. For instance, set them in a `.env` file in the 
+root directory:
 
 ```
 OPENAI_ORG = "org-..."
 OPENAI_KEY = "sk-..."
-```
-
-You'll also want to make sure the non-Prodigy dependencies are installed. 
-
-```
-python -m pip install -r requirements.txt
 ```
 
 ## Running the NER demos. 
@@ -71,6 +75,10 @@ If you're curious to see what we send to OpenAI and what we get back, you can ru
 ```
 
 This repo also provides templates that you can customise in the `/templates` folder. We use `jinja2` to populate these templates with prompts, but you can choose to create your own template and use it via the `--prompt-path` option. 
+Additionally, with `--examples-path` you can set the file path of a .y(a)ml or .json file that contains additional examples.
+```
+python -m prodigy ner.openai.correct my_annotations data/reddit_r_cooking_sample.jsonl "ingredient" -F recipes/ner.py --verbose --prompt-path templates/ner_prompt.jinja2 --examples-path examples/input.yaml
+```
 
 ## Fetching data upfront 
 

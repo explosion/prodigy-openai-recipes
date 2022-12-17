@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Tuple, TypeVar, cast, Optional
 import time
-import sys
 import tqdm
 
 import httpx
@@ -14,6 +13,7 @@ from spacy.language import Language
 import prodigy
 import prodigy.components.preprocess
 import prodigy.util
+from prodigy.util import msg
 import prodigy.components.db
 import jinja2
 import rich
@@ -64,6 +64,8 @@ class OpenAISuggester:
         self.openai_max_tokens = openai_max_tokens
         self.openai_timeout_s = openai_timeout_s
         self.openai_n = openai_n
+        # sanity check for API access and model availability.
+        self._ensure_valid_access()
 
     def __call__(
         self, stream: Iterable[Dict], *, nlp: Language, batch_size: int
@@ -153,9 +155,10 @@ class OpenAISuggester:
         return self.prompt_template.render(text=text, labels=labels, examples=examples)
 
     def _get_ner_response(self, prompts: List[str]) -> List[str]:
+        api_key, org = self._get_env_vars()
         headers = {
-            "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
-            "OpenAI-Organization": os.getenv("OPENAI_ORG"),
+            "Authorization": f"Bearer {api_key}",
+            "OpenAI-Organization": org,
             "Content-Type": "application/json",
         }
         r = _retry429(
@@ -175,6 +178,56 @@ class OpenAISuggester:
         r.raise_for_status()
         responses = r.json()
         return [responses["choices"][i]["text"] for i in range(len(prompts))]
+
+    def _get_env_vars(self) -> Tuple[str, str]:
+        # Fetch and check the key
+        api_key = os.getenv("OPENAI_KEY")
+        if api_key is None:
+            m = (
+                "Could not find the API key to access the openai API. Ensure you have an API key "
+                "set up via https://beta.openai.com/account/api-keys, then make it available as "
+                "an environment variable 'OPENAI_KEY', for instance in a .env file."
+            )
+            msg.fail(m, exits=1)
+        # Fetch and check the org
+        org = os.getenv("OPENAI_ORG")
+        if org is None:
+            m = (
+                "Could not find the organisation to access the openai API. Ensure you have an API key "
+                "set up via https://beta.openai.com/account/api-keys, obtain its organization ID 'org-XXX' "
+                "via https://beta.openai.com/account/org-settings, then make it available as "
+                "an environment variable 'OPENAI_ORG', for instance in a .env file."
+            )
+            msg.fail(m, exits=1)
+        return api_key, org
+
+    def _ensure_valid_access(self):
+        api_key, org = self._get_env_vars()
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "OpenAI-Organization": org,
+        }
+        r = _retry429(
+            lambda: httpx.get(
+                "https://api.openai.com/v1/models",
+                headers=headers,
+            ),
+            n=self.openai_n,
+            timeout_s=self.openai_timeout_s,
+        )
+        try:
+            r.raise_for_status()
+        except httpx.HTTPStatusError:
+            e = (
+                "Could not access api.openai.com. "
+                "Visit https://beta.openai.com/account/api-keys to check your API keys."
+            )
+            msg.fail(e, exits=1)
+        response = r.json()["data"]
+        models = [response[i]["id"] for i in range(len(response))]
+        if self.model not in models:
+            e = f"The specified model '{self.model}' is not available. Choices are: {sorted(set(models))}"
+            msg.fail(e, exits=1)
 
     def _parse_response(self, text: str) -> List[Tuple[str, List[str]]]:
         """Interpret OpenAI's NER response. It's supposed to be
@@ -357,15 +410,21 @@ def _read_examples(path: Optional[Path]) -> List[Dict]:
     elif path.suffix == ".json":
         return cast(List[Dict], srsly.read_json(path))
     else:
-        # TODO: Improve this
-        print("Unknown file format for examples.")
-        sys.exit(1)
+        msg.fail(
+            "The --examples-path (-e) parameter expects a .yml, .yaml or .json file.",
+            exits=1,
+        )
 
 
 def _load_template(path: Path) -> jinja2.Template:
     # I know jinja has a lot of complex file loading stuff,
     # but we're not using the inheritence etc that makes
     # that stuff worthwhile.
+    if not path.suffix == ".jinja2":
+        msg.fail(
+            "The --prompt-path (-p) parameter expects a .jinja2 file.",
+            exits=1,
+        )
     with path.open("r", encoding="utf8") as file_:
         text = file_.read()
     return jinja2.Template(text)
