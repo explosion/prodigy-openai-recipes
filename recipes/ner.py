@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Tuple, TypeVar, cast, Optional
 import time
-import sys
 import tqdm
 
 import httpx
@@ -14,6 +13,7 @@ from spacy.language import Language
 import prodigy
 import prodigy.components.preprocess
 import prodigy.util
+from prodigy.util import msg
 import prodigy.components.db
 import jinja2
 import rich
@@ -153,33 +153,48 @@ class OpenAISuggester:
         return self.prompt_template.render(text=text, labels=labels, examples=examples)
 
     def _get_ner_response(self, prompts: List[str]) -> List[str]:
+        api_key, org = self._get_env_vars()
         headers = {
-            "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
-            "OpenAI-Organization": os.getenv("OPENAI_ORG"),
+            "Authorization": f"Bearer {api_key}",
+            "OpenAI-Organization": org,
             "Content-Type": "application/json",
         }
-        try:
-            r = _retry429(
-                lambda: httpx.post(
-                    "https://api.openai.com/v1/completions",
-                    headers=headers,
-                    json={
-                        "model": self.model,
-                        "prompt": prompts,
-                        "temperature": self.openai_temperature,
-                        "max_tokens": self.openai_max_tokens,
-                    },
-                ),
-                n=self.openai_n,
-                timeout_s=self.openai_timeout_s,
-            )
-        except AttributeError:
-            raise RuntimeError("Could not fetch the results from api.openai.com. "
-                               "Did you store the ORG and KEY values in .env? "
-                               "If you don't have API access yet - visit https://beta.openai.com/account/api-keys")
+        r = _retry429(
+            lambda: httpx.post(
+                "https://api.openai.com/v1/completions",
+                headers=headers,
+                json={
+                    "model": self.model,
+                    "prompt": prompts,
+                    "temperature": self.openai_temperature,
+                    "max_tokens": self.openai_max_tokens,
+                },
+            ),
+            n=self.openai_n,
+            timeout_s=self.openai_timeout_s,
+        )
         r.raise_for_status()
         responses = r.json()
         return [responses["choices"][i]["text"] for i in range(len(prompts))]
+
+    def _get_env_vars(self) -> Tuple[str, str]:
+        # Fetch and check the key
+        api_key = os.getenv('OPENAI_KEY')
+        if api_key is None:
+            m = "Could not find the API key to access the openai API. Ensure you have an API key " \
+                "set up via https://beta.openai.com/account/api-keys, then make it available as " \
+                "an environment variable 'OPENAI_KEY', for instance in a .env file."
+            msg.fail(m, exits=1)
+        # Fetch and check the org
+        org = os.getenv("OPENAI_ORG")
+        if org is None:
+            m = "Could not find the organisation to access the openai API. Ensure you have an API key " \
+                "set up via https://beta.openai.com/account/api-keys, obtain its organization ID 'org-XXX' " \
+                "via https://beta.openai.com/account/org-settings, then make it available as " \
+                "an environment variable 'OPENAI_ORG', for instance in a .env file."
+            msg.fail(m, exits=1)
+        return api_key, org
+
 
     def _parse_response(self, text: str) -> List[Tuple[str, List[str]]]:
         """Interpret OpenAI's NER response. It's supposed to be
