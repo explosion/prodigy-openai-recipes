@@ -1,5 +1,5 @@
 from pathlib import Path
-from recipes.ner import _find_substrings, _load_template
+from recipes.ner import _find_substrings, _load_template, PromptExample
 
 
 def test_multiple_substrings():
@@ -51,14 +51,16 @@ def test_template_two_examples():
     text = "David Bowie lived in Berlin in the 1970s."
     labels = ["PERSON", "PLACE", "PERIOD"]
     examples = [
-        {"text": "New York is a large city.", "entities": [["PLACE", ["New York"]]]},
-        {
-            "text": "David Hasslehoff and Helena Fischer are big in Germany.",
-            "entities": [
-                ["PERSON", ["David Hasslehoff", "Helena Fischer"]],
-                ["PLACE", ["Germany"]],
-            ],
-        },
+        PromptExample(
+            text="New York is a large city.", entities={"PLACE": ["New York"]}
+        ),
+        PromptExample(
+            text="David Hasslehoff and Helena Fischer are big in Germany.",
+            entities={
+                "PERSON": ["David Hasslehoff", "Helena Fischer"],
+                "PLACE": ["Germany"],
+            },
+        ),
     ]
     path = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
     template = _load_template(path)
