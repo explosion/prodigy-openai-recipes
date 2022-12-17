@@ -69,6 +69,8 @@ class OpenAISuggester:
     max_examples: int
     segment: bool
     verbose: bool
+    openai_api_org: str
+    openai_api_key: str
     openai_temperature: int
     openai_max_tokens: int
     openai_timeout_s: int
@@ -78,10 +80,13 @@ class OpenAISuggester:
     def __init__(
         self,
         prompt_template: jinja2.Template,
-        model: str,
+        *,
         labels: List[str],
         max_examples: int,
         segment: bool,
+        openai_api_org: str,
+        openai_api_key: str,
+        openai_model: str,
         openai_temperature: int = 0,
         openai_max_tokens: int = 500,
         openai_timeout_s: int = 1,
@@ -89,12 +94,14 @@ class OpenAISuggester:
         verbose: bool = False,
     ):
         self.prompt_template = prompt_template
-        self.model = model
+        self.model = openai_model
         self.labels = labels
         self.max_examples = max_examples
         self.verbose = verbose
         self.segment = segment
         self.examples = []
+        self.openai_api_org = openai_api_org
+        self.openai_api_key = openai_api_key
         self.openai_temperature = openai_temperature
         self.openai_max_tokens = openai_max_tokens
         self.openai_timeout_s = openai_timeout_s
@@ -191,10 +198,9 @@ class OpenAISuggester:
         return self.prompt_template.render(text=text, labels=labels, examples=examples)
 
     def _get_ner_response(self, prompts: List[str]) -> List[str]:
-        api_key, org = self._get_env_vars()
         headers = {
-            "Authorization": f"Bearer {api_key}",
-            "OpenAI-Organization": org,
+            "Authorization": f"Bearer {self.openai_api_key}",
+            "OpenAI-Organization": self.openai_api_org,
             "Content-Type": "application/json",
         }
         r = _retry429(
@@ -214,56 +220,6 @@ class OpenAISuggester:
         r.raise_for_status()
         responses = r.json()
         return [responses["choices"][i]["text"] for i in range(len(prompts))]
-
-    def _get_env_vars(self) -> Tuple[str, str]:
-        # Fetch and check the key
-        api_key = os.getenv("OPENAI_KEY")
-        if api_key is None:
-            m = (
-                "Could not find the API key to access the openai API. Ensure you have an API key "
-                "set up via https://beta.openai.com/account/api-keys, then make it available as "
-                "an environment variable 'OPENAI_KEY', for instance in a .env file."
-            )
-            msg.fail(m, exits=1)
-        # Fetch and check the org
-        org = os.getenv("OPENAI_ORG")
-        if org is None:
-            m = (
-                "Could not find the organisation to access the openai API. Ensure you have an API key "
-                "set up via https://beta.openai.com/account/api-keys, obtain its organization ID 'org-XXX' "
-                "via https://beta.openai.com/account/org-settings, then make it available as "
-                "an environment variable 'OPENAI_ORG', for instance in a .env file."
-            )
-            msg.fail(m, exits=1)
-        return api_key, org
-
-    def _ensure_valid_access(self):
-        api_key, org = self._get_env_vars()
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "OpenAI-Organization": org,
-        }
-        r = _retry429(
-            lambda: httpx.get(
-                "https://api.openai.com/v1/models",
-                headers=headers,
-            ),
-            n=self.openai_n,
-            timeout_s=self.openai_timeout_s,
-        )
-        try:
-            r.raise_for_status()
-        except httpx.HTTPStatusError:
-            e = (
-                "Could not access api.openai.com. "
-                "Visit https://beta.openai.com/account/api-keys to check your API keys."
-            )
-            msg.fail(e, exits=1)
-        response = r.json()["data"]
-        models = [response[i]["id"] for i in range(len(response))]
-        if self.model not in models:
-            e = f"The specified model '{self.model}' is not available. Choices are: {sorted(set(models))}"
-            msg.fail(e, exits=1)
 
     def _parse_response(self, text: str) -> List[Tuple[str, List[str]]]:
         """Interpret OpenAI's NER response. It's supposed to be
@@ -320,13 +276,16 @@ def ner_openai_correct(
     nlp = spacy.blank(lang)
     if not segment:
         nlp.add_pipe("sentencizer")
+    api_key, api_org = _get_api_credentials()
     openai = OpenAISuggester(
-        model=model,
+        openai_model=model,
         labels=labels,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
         segment=segment,
         verbose=verbose,
+        openai_api_org=api_org,
+        openai_api_key=api_key,
     )
     for eg in examples:
         openai.add_example(eg)
@@ -389,23 +348,79 @@ def ner_openai_fetch(
     wait on the OpenAI queries. The downside is that you can't flag examples to be integrated
     into the prompt during the annotation, unlike the ner.openai.correct recipe.
     """
+    api_key, api_org = _get_api_credentials()
     examples = _read_prompt_examples(examples_path)
     nlp = spacy.blank(lang)
     if segment:
         nlp.add_pipe("sentencizer")
     openai = OpenAISuggester(
-        model=model,
+        openai_model=model,
         labels=labels,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
         verbose=verbose,
         segment=segment,
+        openai_api_key=api_key,
+        openai_api_org=api_org,
     )
     for eg in examples:
         openai.add_example(eg)
     stream = list(srsly.read_jsonl(input_path))
     stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
     srsly.write_jsonl(output_path, stream)
+
+
+def _get_api_credentials() -> Tuple[str, str]:
+    # Fetch and check the key
+    api_key = os.getenv("OPENAI_KEY")
+    if api_key is None:
+        m = (
+            "Could not find the API key to access the openai API. Ensure you have an API key "
+            "set up via https://beta.openai.com/account/api-keys, then make it available as "
+            "an environment variable 'OPENAI_KEY', for instance in a .env file."
+        )
+        msg.fail(m)
+        sys.exit(-1)
+    # Fetch and check the org
+    org = os.getenv("OPENAI_ORG")
+    if org is None:
+        m = (
+            "Could not find the organisation to access the openai API. Ensure you have an API key "
+            "set up via https://beta.openai.com/account/api-keys, obtain its organization ID 'org-XXX' "
+            "via https://beta.openai.com/account/org-settings, then make it available as "
+            "an environment variable 'OPENAI_ORG', for instance in a .env file."
+        )
+        msg.fail(m)
+        sys.exit(-1)
+    # Check the access. It would be nice to have a healthcheck endpoint, but failing that
+    # we query for the models. We just want to see that we can reach the API and that we don't
+    # get an access denied.
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "OpenAI-Organization": org,
+    }
+    r = _retry429(
+        lambda: httpx.get(
+            "https://api.openai.com/v1/models",
+            headers=headers,
+        ),
+        n=1,
+        timeout_s=1,
+    )
+    if r.status_code == 422:
+        m = (
+            "Could not access api.openai.com -- 422 permission denied."
+            "Visit https://beta.openai.com/account/api-keys to check your API keys."
+        )
+
+        msg.fail(m)
+        sys.exit(-1)
+    elif r.status_code != 200:
+        m = "Error accessing api.openai.com" f"{r.status_code}: {r.text}"
+        msg.fail(m)
+        sys.exit(-1)
+
+    return api_key, org
 
 
 def _read_prompt_examples(path: Optional[Path]) -> List[PromptExample]:
