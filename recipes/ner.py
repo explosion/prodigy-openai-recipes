@@ -411,7 +411,7 @@ def _find_substrings(
     text: str,
     substrings: List[str],
     *,
-    case_sensitive=False,
+    case_sensitive: bool = False,
     single_match: bool = False,
 ) -> List[Tuple[int, int]]:
     """Given a list of substrings, find their character start and end positions in a text. The substrings are assumed to be sorted by the order of their occurrence in the text.
@@ -419,30 +419,25 @@ def _find_substrings(
     text: The text to search over.
     substrings: The strings to find.
     case_sensitive: Whether to search without case sensitivity.
-    single_match: If false, allow one substring to match multiple times in the text.
+    single_match: If False, allow one substring to match multiple times in the text. If True, returns the first hit.
     """
+    # remove empty and duplicate strings, and lowercase everything if need be
+    substrings = [s for s in substrings if s and len(s) > 0]
     if not case_sensitive:
         text = text.lower()
         substrings = [s.lower() for s in substrings]
-    if not single_match:
-        # If we're going to allow each substring to match
-        # multiple times, we have to make sure we don't have
-        # duplicate substrings.
-        substrings = list(set(substrings))
+    substrings = list(set(substrings))
     offsets = []
-    search_from = 0
     for substring in substrings:
-        if not single_match:
-            search_from = 0
-        if substring == "":
-            continue
-        # Find from an offset, to handle phrases that
-        # occur multiple times in the text.
+        search_from = 0
+        # Search until one hit is find. Continue only if single_match is False.
         while True:
             start = text.find(substring, search_from)
             if start == -1:
                 break
             end = start + len(substring)
             offsets.append((start, end))
+            if single_match:
+                break
             search_from = end
     return offsets
