@@ -219,7 +219,7 @@ class OpenAISuggester:
             r.raise_for_status()
         except httpx.HTTPStatusError:
             e = (
-                "401 Unauthorized: API key and organization are not authorized for API access to api.openai.com. "
+                "Could not access api.openai.com. "
                 "Visit https://beta.openai.com/account/api-keys to check your API keys."
             )
             msg.fail(e, exits=1)
