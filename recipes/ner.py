@@ -215,7 +215,14 @@ class OpenAISuggester:
             n=self.openai_n,
             timeout_s=self.openai_timeout_s,
         )
-        r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except httpx.HTTPStatusError:
+            e = (
+                "401 Unauthorized: API key and organization are not authorized for API access to api.openai.com. "
+                "Visit https://beta.openai.com/account/api-keys to check your API keys."
+            )
+            msg.fail(e, exits=1)
         response = r.json()["data"]
         models = [response[i]["id"] for i in range(len(response))]
         if self.model not in models:
