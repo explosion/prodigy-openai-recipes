@@ -430,7 +430,7 @@ def _find_substrings(
     offsets = []
     for substring in substrings:
         search_from = 0
-        # Search until one hit is find. Continue only if single_match is False.
+        # Search until one hit is found. Continue only if single_match is False.
         while True:
             start = text.find(substring, search_from)
             if start == -1:
