@@ -18,13 +18,9 @@ def test_substrings_case():
     assert res == [(3, 5), (12, 14)]
     res = _find_substrings(text, substrings, single_match=False, case_sensitive=False)
     assert res == [(0, 2), (3, 5), (12, 14)]
-    res = _find_substrings(text, substrings, single_match=False, case_sensitive=False)
-    assert res == [(0, 2), (3, 5), (12, 14)]
     res = _find_substrings(text, substrings, single_match=True, case_sensitive=True)
     assert res == [(3, 5)]
     res = _find_substrings(text, substrings, single_match=True, case_sensitive=False)
-    assert res == [(0, 2)]
-    res = _find_substrings(text, substrings, single_match=True)
     assert res == [(0, 2)]
 
 
