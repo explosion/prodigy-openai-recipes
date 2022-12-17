@@ -106,6 +106,8 @@ class OpenAISuggester:
         self.openai_max_tokens = openai_max_tokens
         self.openai_timeout_s = openai_timeout_s
         self.openai_n = openai_n
+        # sanity check for API access and model availability.
+        self._ensure_valid_access()
 
     def __call__(
         self, stream: Iterable[Dict], *, nlp: Language, batch_size: int
@@ -277,7 +279,7 @@ def ner_openai_correct(
 ):
     examples = _read_prompt_examples(examples_path)
     nlp = spacy.blank(lang)
-    if segment:
+    if not segment:
         nlp.add_pipe("sentencizer")
     api_key, api_org = _get_api_credentials()
     openai = OpenAISuggester(
