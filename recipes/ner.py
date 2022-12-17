@@ -265,7 +265,7 @@ class OpenAISuggester:
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
-    unsegmented=("Don't split sentences", "flag", "U", bool),
+    segment=("Split sentences", "flag", "U", bool),
     verbose=("Print extra information to terminal", "flag", "v", bool),
 )
 def ner_openai_correct(
@@ -275,7 +275,7 @@ def ner_openai_correct(
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
-    unsegmented: bool = False,
+    segment: bool = False,
     examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
     max_examples: int = 2,
@@ -283,14 +283,14 @@ def ner_openai_correct(
 ):
     examples = _read_examples(examples_path)
     nlp = spacy.blank(lang)
-    if not unsegmented:
+    if not segment:
         nlp.add_pipe("sentencizer")
     openai = OpenAISuggester(
         model=model,
         labels=labels,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
-        segment=not unsegmented,
+        segment=segment,
         verbose=verbose,
     )
     for eg in examples:
@@ -330,7 +330,7 @@ def ner_openai_correct(
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
-    unsegmented=("Don't split sentences", "flag", "U", bool),
+    segment=("Split sentences", "flag", "S", bool),
     verbose=("Print extra information to terminal", "option", "flag", bool),
 )
 def ner_openai_fetch(
@@ -340,7 +340,7 @@ def ner_openai_fetch(
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
-    unsegmented: bool = False,
+    segment: bool = True,
     examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
     max_examples: int = 2,
@@ -356,7 +356,7 @@ def ner_openai_fetch(
     """
     examples = _read_examples(examples_path)
     nlp = spacy.blank(lang)
-    if not unsegmented:
+    if segment:
         nlp.add_pipe("sentencizer")
     openai = OpenAISuggester(
         model=model,
@@ -364,7 +364,7 @@ def ner_openai_fetch(
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
         verbose=verbose,
-        segment=not unsegmented,
+        segment=segment,
     )
     for eg in examples:
         openai.add_example(eg)
