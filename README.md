@@ -75,6 +75,10 @@ If you're curious to see what we send to OpenAI and what we get back, you can ru
 ```
 
 This repo also provides templates that you can customise in the `/templates` folder. We use `jinja2` to populate these templates with prompts, but you can choose to create your own template and use it via the `--prompt-path` option. 
+Additionally, with `--examples-path` you can set the file path of a .y(a)ml or .json file that contains additional examples.
+```
+python -m prodigy ner.openai.correct my_annotations data/reddit_r_cooking_sample.jsonl "ingredient" -F recipes/ner.py --verbose --prompt-path templates/ner_prompt.jinja2 --examples-path examples/input.yaml
+```
 
 ## Fetching data upfront 
 

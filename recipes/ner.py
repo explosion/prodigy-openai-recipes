@@ -362,9 +362,7 @@ def _read_examples(path: Optional[Path]) -> List[Dict]:
     elif path.suffix == ".json":
         return cast(List[Dict], srsly.read_json(path))
     else:
-        # TODO: Improve this
-        print("Unknown file format for examples.")
-        sys.exit(1)
+        raise ValueError("The --examples-path parameter expects a .yml, .yaml or .json file.")
 
 
 def _load_template(path: Path) -> jinja2.Template:
