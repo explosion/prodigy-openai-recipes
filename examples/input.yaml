@@ -6,6 +6,7 @@
       - carob
 
 -
-  text: "You can probably sand-blast it if it's an anodized aluminum INGREDIENTpan, which it probably is."
+  text: "You can probably sand-blast it if it's an anodized aluminum pan, which it probably is."
   entities:
     Ingredient: [] 
+    Equipment: ["anodized aluminum pan"]
