@@ -106,8 +106,6 @@ class OpenAISuggester:
         self.openai_max_tokens = openai_max_tokens
         self.openai_timeout_s = openai_timeout_s
         self.openai_n = openai_n
-        # sanity check for API access and model availability.
-        self._ensure_valid_access()
 
     def __call__(
         self, stream: Iterable[Dict], *, nlp: Language, batch_size: int
@@ -185,6 +183,11 @@ class OpenAISuggester:
                             }
                         )
             example = prodigy.util.set_hashes({**example, "spans": spans})
+            example["html"] = (
+                f'<div class="cleaned"><details><summary><b>Show the prompt for OpenAI</b></summary>'
+                f'<p>{example["openai"]["prompt"]}</p></details><details><summary>'
+                f'<b>Show the response from OpenAI</b></summary><p>{example["openai"]["response"]}</p></details></div>'
+            )
             yield example
 
     def _get_ner_prompt(
@@ -274,7 +277,7 @@ def ner_openai_correct(
 ):
     examples = _read_prompt_examples(examples_path)
     nlp = spacy.blank(lang)
-    if not segment:
+    if segment:
         nlp.add_pipe("sentencizer")
     api_key, api_org = _get_api_credentials()
     openai = OpenAISuggester(
