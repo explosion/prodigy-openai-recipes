@@ -11,6 +11,20 @@ def test_multiple_substrings():
     assert res == [(0, 10), (43, 53)]
 
 
+def test_substrings_case():
+    text = "A, a, B, b, a,b,c,d"
+    substrings = ["a,"]
+    res = _find_substrings(text, substrings, single_match=False, case_sensitive=True)
+    assert res == [(3, 5), (12, 14)]
+    res = _find_substrings(text, substrings, single_match=False, case_sensitive=False)
+    assert res == [(0, 2), (3, 5), (12, 14)]
+    res = _find_substrings(text, substrings, single_match=True, case_sensitive=True)
+    print("res", res)
+    assert res == [(3, 5)]
+    res = _find_substrings(text, substrings, single_match=True, case_sensitive=False)
+    assert res == [(0, 2)]
+
+
 def test_template_no_examples():
     text = "David Bowie lived in Berlin in the 1970s."
     labels = ["PERSON", "PLACE", "PERIOD"]
