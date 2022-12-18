@@ -274,7 +274,7 @@ def ner_openai_correct(
     nlp = spacy.blank(lang)
     if not segment:
         nlp.add_pipe("sentencizer")
-    api_key, api_org = _get_api_credentials()
+    api_key, api_org = _check_api_credentials(model)
     openai = OpenAISuggester(
         openai_model=model,
         labels=labels,
@@ -346,7 +346,7 @@ def ner_openai_fetch(
     wait on the OpenAI queries. The downside is that you can't flag examples to be integrated
     into the prompt during the annotation, unlike the ner.openai.correct recipe.
     """
-    api_key, api_org = _get_api_credentials()
+    api_key, api_org = _check_api_credentials(model)
     examples = _read_prompt_examples(examples_path)
     nlp = spacy.blank(lang)
     if segment:
@@ -390,9 +390,12 @@ def _get_api_credentials() -> Tuple[str, str]:
         )
         msg.fail(m)
         sys.exit(-1)
-    # Check the access. It would be nice to have a healthcheck endpoint, but failing that
-    # we query for the models. We just want to see that we can reach the API and that we don't
-    # get an access denied.
+    return api_key, org
+
+
+def _check_api_credentials(model: str) -> Tuple[str, str]:
+    api_key, org = _get_api_credentials()
+    # Check the access and get a list of available models to verify the model argument
     headers = {
         "Authorization": f"Bearer {api_key}",
         "OpenAI-Organization": org,
@@ -410,13 +413,18 @@ def _get_api_credentials() -> Tuple[str, str]:
             "Could not access api.openai.com -- 422 permission denied."
             "Visit https://beta.openai.com/account/api-keys to check your API keys."
         )
-
         msg.fail(m)
         sys.exit(-1)
     elif r.status_code != 200:
         m = "Error accessing api.openai.com" f"{r.status_code}: {r.text}"
         msg.fail(m)
         sys.exit(-1)
+
+    response = r.json()["data"]
+    models = [response[i]["id"] for i in range(len(response))]
+    if model not in models:
+        e = f"The specified model '{model}' is not available. Choices are: {sorted(set(models))}"
+        msg.fail(e, exits=1)
 
     return api_key, org
 
