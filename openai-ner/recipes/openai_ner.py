@@ -22,7 +22,7 @@ import prodigy.components.preprocess
 import prodigy.util
 from prodigy.util import msg
 
-_ItemT = TypeVar("_ItemT  ")
+_ItemT = TypeVar("_ItemT")
 
 DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
