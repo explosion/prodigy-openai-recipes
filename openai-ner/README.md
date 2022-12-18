@@ -29,9 +29,7 @@ OPENAI_ORG = "org-..."
 OPENAI_KEY = "sk-..."
 ```
 
-## Recipes
-
-### ner.openai.correct
+## ner.openai.correct
 
 This recipe marks entity predictions obtained from a large language model and allows you to flag them as correct, or to
 manually curate them. This allows you to quickly gather a gold-standard dataset through zero-shot or few-shot learning.
