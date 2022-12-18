@@ -30,16 +30,12 @@ DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "ner_prompt.j
 HTML_TEMPLATE = """
 <div class="cleaned">
   <details>
-    <summary>
-      <b>Show the prompt for OpenAI</b>
-    </summary>
-    <p>{{openai.prompt}}</p>
+    <summary>Show the prompt for OpenAI</summary>
+    <pre>{{openai.prompt}}</pre>
   </details>
   <details>
-    <summary>
-      <b>Show the response from OpenAI</b>
-    </summary>
-    <p>{{openai.response}}</p>
+    <summary>Show the response from OpenAI</summary>
+    <pre>{{openai.response}}</pre>
   </details>
 </div>
 """
