@@ -332,7 +332,7 @@ def ner_openai_fetch(
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
-    segment: bool = True,
+    segment: bool = False,
     examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
     max_examples: int = 2,
