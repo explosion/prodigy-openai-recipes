@@ -1,33 +1,33 @@
+from typing import Callable, Dict, Iterable, List, Tuple, TypeVar, cast, Optional
 import copy
 import os
-from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Tuple, TypeVar, cast, Optional
 import time
 import tqdm
 import sys
-from dataclasses import dataclass
-from collections import defaultdict
-
 import httpx
-import spacy
-import srsly
-from dotenv import load_dotenv
-from spacy.language import Language
-import prodigy
-from prodigy.components.preprocess import split_sentences, add_tokens
-import prodigy.util
-from prodigy.util import msg
-import prodigy.components.db
 import jinja2
 import rich
 from rich.panel import Panel
+from pathlib import Path
+from dataclasses import dataclass
+from collections import defaultdict
+from dotenv import load_dotenv
+
+import srsly
+import spacy
+from spacy.language import Language
+import prodigy
+import prodigy.components.db
+from prodigy.components.preprocess import split_sentences, add_tokens
+from prodigy.util import msg, set_hashes
 
 _ItemT = TypeVar("_ItemT")
 
 DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
+CSS_FILE_PATH = Path(__file__).parent / "style.css"
 
-# Set up openai
-load_dotenv()  # take environment variables from .env.
+# Set up openai access by taking environment variables from .env.
+load_dotenv()
 
 
 @dataclass
@@ -43,7 +43,7 @@ class PromptExample:
         in the prompt."""
 
         return (
-            example.get("flagged") == True
+            example.get("flagged") is True
             and example.get("answer") == "accept"
             and "text" in example
         )
@@ -128,17 +128,15 @@ class OpenAISuggester:
         if self.max_examples:
             self.examples.append(example)
         if len(self.examples) >= self.max_examples:
-            self.examples = self.examples[-self.max_examples :]
+            self.examples = self.examples[-self.max_examples:]
 
     def stream_suggestions(
         self, stream: Iterable[Dict], batch_size: int
     ) -> Iterable[Dict]:
-        """Get zero-shot or few-shot suggested NER annotationss from OpenAI.
+        """Get zero-shot or few-shot suggested NER annotations from OpenAI.
 
-        Given a stream of example dictionaries, we calculate a
-        prompt, get a response from OpenAI, and add them to the
-        dictionary. A further function then takes care of parsing
-        the response and setting up the span annotations for Prodigy.
+        Given a stream of input examples, we define a prompt, get a response from OpenAI,
+        and yield each example with their predictions to the output stream.
         """
         for batch in _batch_sequence(stream, batch_size):
             prompts = [
@@ -159,12 +157,14 @@ class OpenAISuggester:
     def format_suggestions(
         self, stream: Iterable[Dict], *, nlp: Language
     ) -> Iterable[Dict]:
+        """ Parse the examples in the stream and set up span annotations
+        to display in the Prodigy UI.
+        """
         stream = add_tokens(nlp, stream, skip=True)  # type: ignore
         for example in stream:
             example = copy.deepcopy(example)
-            # This tokenizes the text with spaCy, so that the token boundaries can be used
-            # during the annotation. Without the token boundaries, you need to get the
-            # annotation exactly on the characters, which is annoying.
+            # This tokenizes the text with spaCy, so that annotations on the Prodigy UI
+            # can automatically snap to token boundaries, making the process much more efficient.
             doc = nlp.make_doc(example["text"])
             response = self._parse_response(example["openai"]["response"])
             spans = []
@@ -182,7 +182,7 @@ class OpenAISuggester:
                                 "token_end": span.end - 1,
                             }
                         )
-            example = prodigy.util.set_hashes({**example, "spans": spans})
+            example = set_hashes({**example, "spans": spans})
             yield example
 
     def _get_ner_prompt(
@@ -243,18 +243,13 @@ class OpenAISuggester:
     dataset=("Dataset to save answers to", "positional", None, str),
     filepath=("Path to jsonl data to annotate", "positional", None, Path),
     labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
-    model=("GPT-3 model to use for completion", "option", "m", str),
-    examples_path=(
-        "Path to examples to help define the task",
-        "option",
-        "e",
-        Path,
-    ),
+    model=("GPT-3 model to use for initial predictions", "option", "m", str),
+    examples_path=("Path to examples to help define the task", "option", "e", Path),
     lang=("Language to use for tokenizer", "option", "l", str),
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
-    segment=("Split sentences", "flag", "U", bool),
+    segment=("Split articles into sentences", "flag", "U", bool),
     verbose=("Print extra information to terminal", "flag", "v", bool),
 )
 def ner_openai_correct(
@@ -306,7 +301,7 @@ def ner_openai_correct(
             "exclude_by": "input",
             "blocks": [{"view_id": "ner_manual"}, {"view_id": "html"}],
             "show_flag": True,
-            "global_css": (Path(__file__).parent / "style.css").read_text(),
+            "global_css": CSS_FILE_PATH.read_text(),
         },
     }
 
@@ -445,7 +440,7 @@ def _read_prompt_examples(path: Optional[Path]) -> List[PromptExample]:
 
 def _load_template(path: Path) -> jinja2.Template:
     # I know jinja has a lot of complex file loading stuff,
-    # but we're not using the inheritence etc that makes
+    # but we're not using the inheritance etc that makes
     # that stuff worthwhile.
     if not path.suffix == ".jinja2":
         msg.fail(
