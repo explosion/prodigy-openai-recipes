@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 import srsly
 import spacy
 from spacy.language import Language
+from spacy.util import filter_spans
 import prodigy
 import prodigy.components.db
 import prodigy.components.preprocess
@@ -188,21 +189,28 @@ class OpenAISuggester:
             # can automatically snap to token boundaries, making the process much more efficient.
             doc = nlp.make_doc(example["text"])
             response = self._parse_response(example["openai"]["response"])
-            spans = []
+            spacy_spans = []
             for label, phrases in response:
                 offsets = _find_substrings(doc.text, phrases)
                 for start, end in offsets:
-                    span = doc.char_span(start, end, alignment_mode="contract")
+                    span = doc.char_span(
+                        start, end, alignment_mode="contract", label=label
+                    )
                     if span is not None:
-                        spans.append(
-                            {
-                                "label": label,
-                                "start": start,
-                                "end": end,
-                                "token_start": span.start,
-                                "token_end": span.end - 1,
-                            }
-                        )
+                        spacy_spans.append(span)
+            # This step prevents the same token from being used in multiple spans.
+            # If there's a conflict, the longer span is preserved.
+            spacy_spans = filter_spans(spacy_spans)
+            spans = [
+                {
+                    "label": span.label_,
+                    "start": span.start_char,
+                    "end": span.end_char,
+                    "token_start": span.start,
+                    "token_end": span.end - 1,
+                }
+                for span in spacy_spans
+            ]
             example = prodigy.util.set_hashes({**example, "spans": spans})
             yield example
 
