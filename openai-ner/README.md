@@ -1,8 +1,9 @@
 # openai-prodigy-recipes
 
-This repository contains example code on how to run zero- and few-shot learning
-with Prodigy, using large language models available from OpenAI. Specifically, we use LLMs
-to provide us with an initial set of predictions, then spin up a Prodigy instance on our local machine
+This repository contains example code on how to combine zero- and few-shot learning
+with a small annotation effort to obtain a high-quality dataset with maximum efficiency. Specifically, we use
+large language models available from OpenAI to provide us with an initial set of predictions,
+then spin up a Prodigy instance on our local machine
 to go through these predictions and curate them. This allows us to obtain a
 gold-standard dataset pretty quickly, and train a smaller, supervised model that fits
 our exact needs and use-case.
