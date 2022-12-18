@@ -18,10 +18,11 @@ import spacy
 from spacy.language import Language
 import prodigy
 import prodigy.components.db
-from prodigy.components.preprocess import split_sentences, add_tokens
-from prodigy.util import msg, set_hashes
+import prodigy.components.preprocess
+import prodigy.util
+from prodigy.util import msg
 
-_ItemT = TypeVar("_ItemT")
+_ItemT = TypeVar("_ItemT  ")
 
 DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
@@ -111,7 +112,7 @@ class OpenAISuggester:
         self, stream: Iterable[Dict], *, nlp: Language, batch_size: int
     ) -> Iterable[Dict]:
         if self.segment:
-            stream = split_sentences(nlp, stream)
+            stream = prodigy.components.preprocess.split_sentences(nlp, stream)
 
         stream = self.stream_suggestions(stream, batch_size=batch_size)
         stream = self.format_suggestions(stream, nlp=nlp)
@@ -128,7 +129,7 @@ class OpenAISuggester:
         if self.max_examples:
             self.examples.append(example)
         if len(self.examples) >= self.max_examples:
-            self.examples = self.examples[-self.max_examples:]
+            self.examples = self.examples[-self.max_examples :]
 
     def stream_suggestions(
         self, stream: Iterable[Dict], batch_size: int
@@ -157,10 +158,10 @@ class OpenAISuggester:
     def format_suggestions(
         self, stream: Iterable[Dict], *, nlp: Language
     ) -> Iterable[Dict]:
-        """ Parse the examples in the stream and set up span annotations
+        """Parse the examples in the stream and set up span annotations
         to display in the Prodigy UI.
         """
-        stream = add_tokens(nlp, stream, skip=True)  # type: ignore
+        stream = prodigy.components.preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
         for example in stream:
             example = copy.deepcopy(example)
             # This tokenizes the text with spaCy, so that annotations on the Prodigy UI
@@ -182,7 +183,7 @@ class OpenAISuggester:
                                 "token_end": span.end - 1,
                             }
                         )
-            example = set_hashes({**example, "spans": spans})
+            example = prodigy.util.set_hashes({**example, "spans": spans})
             yield example
 
     def _get_ner_prompt(
