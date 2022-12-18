@@ -1,19 +1,26 @@
 # openai-prodigy-recipes
 
-An internal repo to share code for OpenAI recipes.
+This repository contains example code on how to run zero- and few-shot learning
+with Prodigy, using large language models available from OpenAI. Specifically, we use LLMs
+to provide us with an initial set of predictions, then spin up a Prodigy instance on our local machine
+to go through these predictions and curate them. This allows us to obtain a
+gold-standard dataset pretty quickly, and train a smaller, supervised model that fits
+our exact needs and use-case.
 
-## Setup and Install 
+## Setup and Install
 
 Make sure to [install Prodigy](https://prodi.gy/docs/install) as well as a few additional Python dependencies:
+
 ```
 python -m pip install prodigy -f https://XXXX-XXXX-XXXX-XXXX@download.prodi.gy
 python -m pip install -r requirements.txt
 ```
+
 With `XXXX-XXXX-XXXX-XXXX` being your personal Prodigy license key.
 
-Then, create a new API key from [https://beta.openai.com/account/api-keys](openai.com) or fetch an existing 
-one. Record the secret key as well as the [organization key](https://beta.openai.com/account/org-settings) 
-and make sure these are available as environmental variables. For instance, set them in a `.env` file in the 
+Then, create a new API key from [https://beta.openai.com/account/api-keys](openai.com) or fetch an existing
+one. Record the secret key as well as the [organization key](https://beta.openai.com/account/org-settings)
+and make sure these are available as environmental variables. For instance, set them in a `.env` file in the
 root directory:
 
 ```
@@ -21,17 +28,48 @@ OPENAI_ORG = "org-..."
 OPENAI_KEY = "sk-..."
 ```
 
-## Running the NER demos. 
+## Recipes
 
-We're hosting recipes that use zero/few-shot learning via OpenAI. 
+### ner.openai.correct
+
+This recipe marks entity predictions obtained from a large language model and allows you to flag them as correct, or to
+manually curate them. This allows you to quickly gather a gold-standard dataset through zero-shot or few-shot learning.
+
+```
+python -m prodigy ner.openai.correct dataset filepath labels [--options] -F openai-ner/recipes/openai_ner.py
+```
+
+| Argument                | Type | Description                                                                                                                                     | Default                       |
+| ----------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `dataset`               | str  | Prodigy dataset to save annotations to.                                                                                                         |                               |
+| `file_path`             | Path | Path to jsonl data to annotate. The data should at least contain a 'text' field."                                                               |                               |
+| `labels`                | str  | Comma-separated list defining the NER labels the model should predict.                                                                          |                               |
+| `--lang`, `-l`          | str  | Language of the input data - will be used to obtain a relevant tokenizer.                                                                       | `"en"`                        |
+| `--segment`, `-n`       | bool | Flag to set when examples should be split into sentences. By default, the full input article is shown.                                          | `False`                       |
+| `--model`, `-m`         | str  | GPT-3 model to use for initial predictions.                                                                                                     | `"text-davinci-003"`          |
+| `--prompt_path`, `-p`   | Path | Path to the .jinja2 prompt template.                                                                                                            | `templates/ner_prompt.jinja2` |
+| `--examples-path`, `-e` | str  | Path to examples to help define the task. The file can be a .yml, .yaml or .json. If set to `None`, zero-shot learning is applied.              | `None`                        |
+| `--max-examples`, `-n`  | int  | Max number of examples to include in the prompt to OpenAI. If set to 0, zero-shot learning is always applied, even when examples are available. | 2                             |
+| `--batch-size`, `-b`    | int  | Batch size of queries to send to the OpenAI API.                                                                                                | 10                            |
+| `--verbose`, `-v`       | bool | Flag to print extra information to the terminal.                                                                                                | `False`                       |
+
+Example usage:
+
+```
+python -m prodigy ner.openai.correct my_ner_data ./data/reddit_r_cooking_sample.jsonl "ingredient,equipment" -p ./templates/ner_prompt.jinja2 -e ./examples/input.yaml -n 3 -F ./recipes/openai_ner.py
+```
+
+## Running the NER demos.
+
+We're hosting recipes that use zero/few-shot learning via OpenAI.
 
 ![](image.png)
 
-The recipe can take examples from a local `.jsonl` file and turn them into NER annotation prompts. These can be sent to GPT-3, hosted by OpenAI, which respond with an answer. The recipes handle the translation between Prodigy and OpenAI such that you can confirm the annotations easily from Prodigy. It's very much like using the standard [`ner.correct`](https://prodi.gy/docs/recipes#ner-correct) recipe in Prodi.gy, but we're using GPT-3 as a backend model to make predictions. 
+The recipe can take examples from a local `.jsonl` file and turn them into NER annotation prompts. These can be sent to GPT-3, hosted by OpenAI, which respond with an answer. The recipes handle the translation between Prodigy and OpenAI such that you can confirm the annotations easily from Prodigy. It's very much like using the standard [`ner.correct`](https://prodi.gy/docs/recipes#ner-correct) recipe in Prodi.gy, but we're using GPT-3 as a backend model to make predictions.
 
 ## First Steps
 
-For the first demo we'll use an `examples.jsonl` file that contains the following examples. 
+For the first demo we'll use an `examples.jsonl` file that contains the following examples.
 
 ```
 {"text": "I'm a total hillfiger fanboy. Gotta love 'em jeans."}
@@ -45,7 +83,7 @@ The goal of this dataset is to extract the fashion brands with the clothing item
 python -m prodigy ner.openai.correct fashion-openai examples.jsonl "brand,clothing" -F recipes/ner.py
 ```
 
-Here's what the annotation interface will look like. 
+Here's what the annotation interface will look like.
 
 ![](imgs/ner-correct.png)
 
@@ -74,15 +112,16 @@ If you're curious to see what we send to OpenAI and what we get back, you can ru
 ╰─────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-This repo also provides templates that you can customise in the `/templates` folder. We use `jinja2` to populate these templates with prompts, but you can choose to create your own template and use it via the `--prompt-path` option. 
+This repo also provides templates that you can customise in the `/templates` folder. We use `jinja2` to populate these templates with prompts, but you can choose to create your own template and use it via the `--prompt-path` option.
 Additionally, with `--examples-path` you can set the file path of a .y(a)ml or .json file that contains additional examples.
+
 ```
 python -m prodigy ner.openai.correct my_annotations data/reddit_r_cooking_sample.jsonl "ingredient" -F recipes/ner.py --verbose --prompt-path templates/ner_prompt.jinja2 --examples-path examples/input.yaml
 ```
 
-## Fetching data upfront 
+## Fetching data upfront
 
-Right now we are fetching examples from OpenAI while annotating, but we've also included a recipe that can fetch a large batch of examples upfront. 
+Right now we are fetching examples from OpenAI while annotating, but we've also included a recipe that can fetch a large batch of examples upfront.
 
 ```
 python -m prodigy ner.openai.fetch examples.jsonl fetched-examples.jsonl "cuisine,place,ingredient" -F recipes/ner.py
@@ -90,7 +129,7 @@ python -m prodigy ner.openai.fetch examples.jsonl fetched-examples.jsonl "cuisin
 
 This will create a `fetch-examples.jsonl` file that can be loaded with the [ner.manual](https://prodi.gy/docs/recipes#ner-manual) recipe.
 
-## Better Suggestions 
+## Better Suggestions
 
 At some point, you might notice OpenAI make a mistake. We noticed it making errors on this example:
 
@@ -98,7 +137,7 @@ At some point, you might notice OpenAI make a mistake. We noticed it making erro
 {"text": "Caribbean macaroni pie is an awesome baked macaroni and cheese dish. It's popular for a reason. It’s tasty, and pretty cheap too. The Bajan, Guyanese and Trinidadian kitchens all have their own variant though."}
 ```
 
-Using this call: 
+Using this call:
 
 ```
 python -m prodigy ner.openai.correct cooking-openai examples.jsonl "cuisine,place,ingredient" -F recipes/ner.py
@@ -108,7 +147,7 @@ It generated this:
 
 ![](imgs/mistake.png)
 
-It's a relatively minor mistake, but notice how "Caribbean" didn't get picked up. OpenAI isn't perfect. Mistakes can come in all sorts of shapes and sizes, but we are able to steer the output by adding some more examples to the prompt. 
+It's a relatively minor mistake, but notice how "Caribbean" didn't get picked up. OpenAI isn't perfect. Mistakes can come in all sorts of shapes and sizes, but we are able to steer the output by adding some more examples to the prompt.
 
 ### Adding Examples to the Prompt
 
@@ -124,7 +163,7 @@ python -m prodigy db-out cooking-openai | grep \"flagged\":true > prompt-example
 
 ## Training a Model
 
-After you've annotated enough examples - say 100 to start - you can try training a model. We've included a script to automatically train a model using HuggingFace's Transformers library. 
+After you've annotated enough examples - say 100 to start - you can try training a model. We've included a script to automatically train a model using HuggingFace's Transformers library.
 
 First, export your data to spaCy's format with Prodigy - while we aren't training a spaCy model, the data will be easy to convert for HuggingFace.
 
@@ -140,6 +179,6 @@ To train the model, run the training script like this:
 python scripts/train_hf_ner.py data/train.spacy ner-model
 ```
 
-This will run for a while and train your first model. With just 100 annotations performance may not be great, but you should see it improve over each epoch, which is a sign that your data is consistent and you're on the right track. The resulting model will be saved to the `ner-model/` directory. 
+This will run for a while and train your first model. With just 100 annotations performance may not be great, but you should see it improve over each epoch, which is a sign that your data is consistent and you're on the right track. The resulting model will be saved to the `ner-model/` directory.
 
 From here all you have to do is continue to iterate on your model until you're happy with it.
