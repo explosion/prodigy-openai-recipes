@@ -91,7 +91,8 @@ Note that because the requests to the API are batched, you might have to scroll 
 
 The predictions returned by the OpenAI language model will not be perfect, and you might encounter systematic mistakes.
 In this case, you can steer the predictions in the right direction by adding some more examples to the prompt.
-You can do this by hitting the small "flag" icon in the top right of the Prodigy UI.
+You can do this by hitting the small "flag" icon in the top right of the Prodigy UI and then hit "accept" on the Prodigy 
+interface as soon as all correct entities are highlighted.
 
 <!-- TODO: example picture -->
 
