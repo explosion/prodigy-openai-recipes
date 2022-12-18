@@ -1,4 +1,4 @@
-.prodigy-content:nth-child(2) {
+.prodigy-container > .prodigy-content {
     white-space: normal;
     border-top: 1px solid #ddd;
 }
@@ -8,17 +8,18 @@
     font-size: 14px;
 }
 
-.cleaned p {
+.cleaned pre {
     background-color: #eee;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     padding: 15px 20px;
     border-radius: 15px;
+    white-space: pre-wrap;
 }
 
 summary {
     font-weight: bold;
     cursor: pointer;
-    font-size: 1.2rem;
+    font-size: 1.2em;
 }
 
 details {

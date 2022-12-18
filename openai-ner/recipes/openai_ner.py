@@ -31,11 +31,11 @@ HTML_TEMPLATE = """
 <div class="cleaned">
   <details>
     <summary>Show the prompt for OpenAI</summary>
-    <p>{{openai.prompt}}</p>
+    <pre>{{openai.prompt}}</pre>
   </details>
   <details>
     <summary>Show the response from OpenAI</summary>
-    <p>{{openai.response}}</p>
+    <pre>{{openai.response}}</pre>
   </details>
 </div>
 """
