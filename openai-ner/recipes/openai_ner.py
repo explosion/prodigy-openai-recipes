@@ -26,6 +26,23 @@ _ItemT = TypeVar("_ItemT")
 
 DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
 
+HTML_TEMPLATE = """
+<div class="cleaned">
+  <details>
+    <summary>
+      <b>Show the prompt for OpenAI</b>
+    </summary>
+    <p>{{openai.prompt}}</p>
+  </details>
+  <details>
+    <summary>
+      <b>Show the response from OpenAI</b>
+    </summary>
+    <p>{{openai.response}}</p>
+  </details>
+</div>
+"""
+
 # Set up openai
 load_dotenv()  # take environment variables from .env.
 
@@ -183,11 +200,6 @@ class OpenAISuggester:
                             }
                         )
             example = prodigy.util.set_hashes({**example, "spans": spans})
-            example["html"] = (
-                f'<div class="cleaned"><details><summary><b>Show the prompt for OpenAI</b></summary>'
-                f'<p>{example["openai"]["prompt"]}</p></details><details><summary>'
-                f'<b>Show the response from OpenAI</b></summary><p>{example["openai"]["response"]}</p></details></div>'
-            )
             yield example
 
     def _get_ner_prompt(
@@ -309,7 +321,10 @@ def ner_openai_correct(
             "labels": labels,
             "batch_size": batch_size,
             "exclude_by": "input",
-            "blocks": [{"view_id": "ner_manual"}, {"view_id": "html"}],
+            "blocks": [
+                {"view_id": "ner_manual"},
+                {"view_id": "html", "html_template": HTML_TEMPLATE},
+            ],
             "show_flag": True,
             "global_css": (Path(__file__).parent / "style.css").read_text(),
         },
