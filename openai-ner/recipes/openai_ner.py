@@ -368,7 +368,7 @@ def ner_openai_fetch(
     srsly.write_jsonl(output_path, stream)
 
 
-def _get_api_credentials() -> Tuple[str, str]:
+def _get_api_credentials(model: str = None) -> Tuple[str, str]:
     # Fetch and check the key
     api_key = os.getenv("OPENAI_KEY")
     if api_key is None:
@@ -390,12 +390,9 @@ def _get_api_credentials() -> Tuple[str, str]:
         )
         msg.fail(m)
         sys.exit(-1)
-    return api_key, org
 
-
-def _check_api_credentials(model: str) -> Tuple[str, str]:
-    api_key, org = _get_api_credentials()
-    # Check the access and get a list of available models to verify the model argument
+    # Check the access and get a list of available models to verify the model argument (if not None)
+    # Even if the model is None, this call is used as a healthcheck to verify access.
     headers = {
         "Authorization": f"Bearer {api_key}",
         "OpenAI-Organization": org,
@@ -420,11 +417,12 @@ def _check_api_credentials(model: str) -> Tuple[str, str]:
         msg.fail(m)
         sys.exit(-1)
 
-    response = r.json()["data"]
-    models = [response[i]["id"] for i in range(len(response))]
-    if model not in models:
-        e = f"The specified model '{model}' is not available. Choices are: {sorted(set(models))}"
-        msg.fail(e, exits=1)
+    if model is not None:
+        response = r.json()["data"]
+        models = [response[i]["id"] for i in range(len(response))]
+        if model not in models:
+            e = f"The specified model '{model}' is not available. Choices are: {sorted(set(models))}"
+            msg.fail(e, exits=1)
 
     return api_key, org
 
