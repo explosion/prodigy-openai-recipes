@@ -8,6 +8,8 @@ to go through these predictions and curate them. This allows us to obtain a
 gold-standard dataset pretty quickly, and train a smaller, supervised model that fits
 our exact needs and use-case.
 
+![](https://user-images.githubusercontent.com/13643239/208323588-ba039581-e924-461e-a389-7ba3d4244f5d.png)
+
 ## Setup and Install
 
 Make sure to [install Prodigy](https://prodi.gy/docs/install) as well as a few additional Python dependencies:
@@ -79,6 +81,8 @@ After receiving the results from the OpenAI API, the Prodigy recipe converts the
 that can be rendered with Prodigy. The task even shows the original prompt as well as the raw answer we obtained
 from the language model.
 
+![](https://user-images.githubusercontent.com/13643239/208323661-cb7838b8-787b-4520-9767-ca27ba23743f.png)
+
 <!-- TODO FIGURE OF EXAMPLE, INCLUDING THE (EXPANDED) HTML BOXES FROM PR #23. -->
 
 <!-- Not sure this is helpful or confusing
@@ -91,10 +95,10 @@ Note that because the requests to the API are batched, you might have to scroll 
 
 The predictions returned by the OpenAI language model will not be perfect, and you might encounter systematic mistakes.
 In this case, you can steer the predictions in the right direction by adding some more examples to the prompt.
-You can do this by hitting the small "flag" icon in the top right of the Prodigy UI and then hit "accept" on the Prodigy 
+You can do this by hitting the small "flag" icon in the top right of the Prodigy UI and then hit "accept" on the Prodigy
 interface as soon as all correct entities are highlighted.
 
-<!-- TODO: example picture -->
+![](https://user-images.githubusercontent.com/13643239/208323787-0b7bfdef-98c3-4a9f-a4d3-28ec98f4deb6.png)
 
 The flagged example will be automatically
 picked up and added to the examples that are sent to the OpenAI API as part of the prompt. Note that because Prodigy batches these requests,
