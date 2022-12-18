@@ -272,7 +272,7 @@ def ner_openai_correct(
 ):
     examples = _read_prompt_examples(examples_path)
     nlp = spacy.blank(lang)
-    if not segment:
+    if segment:
         nlp.add_pipe("sentencizer")
     api_key, api_org = _get_api_credentials(model)
     openai = OpenAISuggester(
