@@ -53,73 +53,70 @@ python -m prodigy ner.openai.correct dataset filepath labels [--options] -F open
 | `--batch-size`, `-b`    | int  | Batch size of queries to send to the OpenAI API.                                                                                                | 10                            |
 | `--verbose`, `-v`       | bool | Flag to print extra information to the terminal.                                                                                                | `False`                       |
 
-Example usage:
+### Example usage
+
+Let's say we want to recognize ingredients and cooking equipment from some text we obtained from a cooking subreddit.
+We'll send the text to GPT-3, hosted by OpenAI, and provide an annotation prompt to explain
+to the language model the type of predictions we want. Something like:
+
+```
+From the text below, extract the following entities in the following format:
+ingredient: <comma delimited list of strings>
+equipment: <comma delimited list of strings>
+
+Text:
+...
+```
+
+We define the definition of this prompt in a .jinja2 file which also describes how to append examples for few-shot learning.
+You can create your own template and provide it to the recipe with the `--prompt-path` or `-p` option.
+Additionally, with `--examples-path` or `-e` you can set the file path of a .y(a)ml or .json file that contains additional examples:
 
 ```
 python -m prodigy ner.openai.correct my_ner_data ./data/reddit_r_cooking_sample.jsonl "ingredient,equipment" -p ./templates/ner_prompt.jinja2 -e ./examples/input.yaml -n 3 -F ./recipes/openai_ner.py
 ```
 
-## Running the NER demos.
+After receiving the results from the OpenAI API, the Prodigy recipe converts the predictions into an annotation task
+that can be rendered with Prodigy. The task even shows the original prompt as well as the raw answer we recieved.
 
-We're hosting recipes that use zero/few-shot learning via OpenAI.
+<!-- TODO FIGURE OF EXAMPLE, INCLUDING THE (EXPANDED) HTML BOXES FROM PR #23. -->
 
-![](image.png)
+<!-- Not sure this is helpful or confusing
+It's very much like using the standard [`ner.correct`](https://prodi.gy/docs/recipes#ner-correct) recipe in Prodi.gy, but we're using GPT-3 as a backend model to make predictions. -->
 
-The recipe can take examples from a local `.jsonl` file and turn them into NER annotation prompts. These can be sent to GPT-3, hosted by OpenAI, which respond with an answer. The recipes handle the translation between Prodigy and OpenAI such that you can confirm the annotations easily from Prodigy. It's very much like using the standard [`ner.correct`](https://prodi.gy/docs/recipes#ner-correct) recipe in Prodi.gy, but we're using GPT-3 as a backend model to make predictions.
+The recipe also offers a `--verbose` or `-v` option that includes the exact prompt and response on the terminal as traffic is received.
+Note that because the requests to the API are batched, you might have to scroll back a bit to find the current prompt.
 
-## First Steps
+### Tune the prompt examples
 
-For the first demo we'll use an `examples.jsonl` file that contains the following examples.
+The predictions returned by the OpenAI language model will not be perfect, and you might encounter systematic mistakes.
+In this case, you can steer the predictions in the right directions by adding some more examples to the prompt.
+You can do this by hitting the small "flag" icon in the top right of the Prodigy UI.
 
-```
-{"text": "I'm a total hillfiger fanboy. Gotta love 'em jeans."}
-{"text": "Levis all the way. Their jeans are solid, but their jackets are better than old navy."}
-{"text": "club monaco's Super Slim Twill Pant is pretty good. i like the taper but the thighs and seat are a bit too skinny for my tastes."}
-```
+<!-- TODO: example picture -->
 
-The goal of this dataset is to extract the fashion brands with the clothing items. So let's see what OpenAI can annotate for us! We can use the `ner.openai.correct` recipe to send examples to their API and get a prediction back.
+The flagged example will be automatically
+picked up and added to the examples that are sent to the OpenAI API as part of the prompt. Note that because Prodigy batches these requests,
+the prompt will be updated with a slight delay, when the next batch of prompts will be sent to OpenAI.
+You can experiment with making the batch size (`--batch-size` or `-b`) smaller to have the change come into effect sooner,
+but this might negatively impact the speed of the annotation workflow.
 
-```
-python -m prodigy ner.openai.correct fashion-openai examples.jsonl "brand,clothing" -F recipes/ner.py
-```
+## db-out: obtain the curated examples
 
-Here's what the annotation interface will look like.
-
-![](imgs/ner-correct.png)
-
-You'll notice that the annotation interface comes with values pre-filled, which can speed up annotation.
-
-### Curious about the prompt?
-
-If you're curious to see what we send to OpenAI and what we get back, you can run the recipe with the `-v` verbose flag. This will print the prompt and the response in the terminal as traffic is received. (Note that because the requests to the API are batched, you might have to scroll back a bit to find the current prompt.)
+After you've curated a set of predictions, you can obtain the results with [`db-out`](https://prodi.gy/docs/recipes#db-out):
 
 ```
-╭────────────────────────────────── Prompt to OpenAI ─────────────────────────────╮
-│ From the text below, extract the following entities in the following format:    │
-│ brand: <comma delimited list of strings>                                        │
-│ clothing: <comma delimited list of strings>                                     │
-│                                                                                 │
-│ Text:                                                                           │
-│ """                                                                             │
-│ I'm a total hillfiger fanboy. Gotta love 'em jeans.                             │
-│ """                                                                             │
-│                                                                                 │
-╰─────────────────────────────────────────────────────────────────────────────────╯
-╭──────────────────────────────── Response from OpenAI ───────────────────────────╮
-│                                                                                 │
-│ brand: Hillfiger                                                                │
-│ clothing: Jeans                                                                 │
-╰─────────────────────────────────────────────────────────────────────────────────╯
+python -m prodigy db-out my_ner_data  > ner_data.jsonl
 ```
 
-This repo also provides templates that you can customise in the `/templates` folder. We use `jinja2` to populate these templates with prompts, but you can choose to create your own template and use it via the `--prompt-path` option.
-Additionally, with `--examples-path` you can set the file path of a .y(a)ml or .json file that contains additional examples.
+If you want to inspect the flagged instances, you could do:
 
 ```
-python -m prodigy ner.openai.correct my_annotations data/reddit_r_cooking_sample.jsonl "ingredient" -F recipes/ner.py --verbose --prompt-path templates/ner_prompt.jinja2 --examples-path examples/input.yaml
+python -m prodigy db-out my_ner_data | grep \"flagged\":true > ner_prompt_examples.jsonl
 ```
 
-## Fetching data upfront
+<!-- TODO: keep this in?
+## ner.openai.fetch
 
 Right now we are fetching examples from OpenAI while annotating, but we've also included a recipe that can fetch a large batch of examples upfront.
 
@@ -128,38 +125,9 @@ python -m prodigy ner.openai.fetch examples.jsonl fetched-examples.jsonl "cuisin
 ```
 
 This will create a `fetch-examples.jsonl` file that can be loaded with the [ner.manual](https://prodi.gy/docs/recipes#ner-manual) recipe.
+-->
 
-## Better Suggestions
-
-At some point, you might notice OpenAI make a mistake. We noticed it making errors on this example:
-
-```
-{"text": "Caribbean macaroni pie is an awesome baked macaroni and cheese dish. It's popular for a reason. It’s tasty, and pretty cheap too. The Bajan, Guyanese and Trinidadian kitchens all have their own variant though."}
-```
-
-Using this call:
-
-```
-python -m prodigy ner.openai.correct cooking-openai examples.jsonl "cuisine,place,ingredient" -F recipes/ner.py
-```
-
-It generated this:
-
-![](imgs/mistake.png)
-
-It's a relatively minor mistake, but notice how "Caribbean" didn't get picked up. OpenAI isn't perfect. Mistakes can come in all sorts of shapes and sizes, but we are able to steer the output by adding some more examples to the prompt.
-
-### Adding Examples to the Prompt
-
-So let's annotate this example so we may add it to the prompt.
-
-![](imgs/flagged.png)
-
-Any flagged examples will automatically be picked up to be added to the prompt. Also note that makes it easier to retrieve the example into a file. The command below does just that.
-
-```
-python -m prodigy db-out cooking-openai | grep \"flagged\":true > prompt-examples.jsonl
-```
+<!-- TODO: keep this in?
 
 ## Training a Model
 
@@ -182,3 +150,5 @@ python scripts/train_hf_ner.py data/train.spacy ner-model
 This will run for a while and train your first model. With just 100 annotations performance may not be great, but you should see it improve over each epoch, which is a sign that your data is consistent and you're on the right track. The resulting model will be saved to the `ner-model/` directory.
 
 From here all you have to do is continue to iterate on your model until you're happy with it.
+
+-->
