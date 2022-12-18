@@ -183,6 +183,11 @@ class OpenAISuggester:
                             }
                         )
             example = prodigy.util.set_hashes({**example, "spans": spans})
+            example["html"] = (
+                f'<div class="cleaned"><details><summary><b>Show the prompt for OpenAI</b></summary>'
+                f'<p>{example["openai"]["prompt"]}</p></details><details><summary>'
+                f'<b>Show the response from OpenAI</b></summary><p>{example["openai"]["response"]}</p></details></div>'
+            )
             yield example
 
     def _get_ner_prompt(
