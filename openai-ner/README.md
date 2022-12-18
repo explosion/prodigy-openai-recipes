@@ -37,22 +37,22 @@ This recipe marks entity predictions obtained from a large language model and al
 manually curate them. This allows you to quickly gather a gold-standard dataset through zero-shot or few-shot learning.
 
 ```
-python -m prodigy ner.openai.correct dataset filepath labels [--options] -F openai-ner/recipes/openai_ner.py
+python -m prodigy ner.openai.correct dataset filepath labels [--options] -F ./recipes/openai_ner.py
 ```
 
-| Argument                | Type | Description                                                                                                                                     | Default                       |
-| ----------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `dataset`               | str  | Prodigy dataset to save annotations to.                                                                                                         |                               |
-| `file_path`             | Path | Path to jsonl data to annotate. The data should at least contain a 'text' field."                                                               |                               |
-| `labels`                | str  | Comma-separated list defining the NER labels the model should predict.                                                                          |                               |
-| `--lang`, `-l`          | str  | Language of the input data - will be used to obtain a relevant tokenizer.                                                                       | `"en"`                        |
-| `--segment`, `-n`       | bool | Flag to set when examples should be split into sentences. By default, the full input article is shown.                                          | `False`                       |
-| `--model`, `-m`         | str  | GPT-3 model to use for initial predictions.                                                                                                     | `"text-davinci-003"`          |
-| `--prompt_path`, `-p`   | Path | Path to the .jinja2 prompt template.                                                                                                            | `templates/ner_prompt.jinja2` |
-| `--examples-path`, `-e` | str  | Path to examples to help define the task. The file can be a .yml, .yaml or .json. If set to `None`, zero-shot learning is applied.              | `None`                        |
-| `--max-examples`, `-n`  | int  | Max number of examples to include in the prompt to OpenAI. If set to 0, zero-shot learning is always applied, even when examples are available. | 2                             |
-| `--batch-size`, `-b`    | int  | Batch size of queries to send to the OpenAI API.                                                                                                | 10                            |
-| `--verbose`, `-v`       | bool | Flag to print extra information to the terminal.                                                                                                | `False`                       |
+| Argument                | Type | Description                                                                                                                                     | Default                         |
+| ----------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `dataset`               | str  | Prodigy dataset to save annotations to.                                                                                                         |                                 |
+| `file_path`             | Path | Path to jsonl data to annotate. The data should at least contain a 'text' field."                                                               |                                 |
+| `labels`                | str  | Comma-separated list defining the NER labels the model should predict.                                                                          |                                 |
+| `--lang`, `-l`          | str  | Language of the input data - will be used to obtain a relevant tokenizer.                                                                       | `"en"`                          |
+| `--segment`, `-n`       | bool | Flag to set when examples should be split into sentences. By default, the full input article is shown.                                          | `False`                         |
+| `--model`, `-m`         | str  | GPT-3 model to use for initial predictions.                                                                                                     | `"text-davinci-003"`            |
+| `--prompt_path`, `-p`   | Path | Path to the .jinja2 prompt template.                                                                                                            | `./templates/ner_prompt.jinja2` |
+| `--examples-path`, `-e` | str  | Path to examples to help define the task. The file can be a .yml, .yaml or .json. If set to `None`, zero-shot learning is applied.              | `None`                          |
+| `--max-examples`, `-n`  | int  | Max number of examples to include in the prompt to OpenAI. If set to 0, zero-shot learning is always applied, even when examples are available. | 2                               |
+| `--batch-size`, `-b`    | int  | Batch size of queries to send to the OpenAI API.                                                                                                | 10                              |
+| `--verbose`, `-v`       | bool | Flag to print extra information to the terminal.                                                                                                | `False`                         |
 
 ### Example usage
 
@@ -78,7 +78,8 @@ python -m prodigy ner.openai.correct my_ner_data ./data/reddit_r_cooking_sample.
 ```
 
 After receiving the results from the OpenAI API, the Prodigy recipe converts the predictions into an annotation task
-that can be rendered with Prodigy. The task even shows the original prompt as well as the raw answer we recieved.
+that can be rendered with Prodigy. The task even shows the original prompt as well as the raw answer we obtained
+from the language model.
 
 <!-- TODO FIGURE OF EXAMPLE, INCLUDING THE (EXPANDED) HTML BOXES FROM PR #23. -->
 
@@ -88,10 +89,10 @@ It's very much like using the standard [`ner.correct`](https://prodi.gy/docs/rec
 The recipe also offers a `--verbose` or `-v` option that includes the exact prompt and response on the terminal as traffic is received.
 Note that because the requests to the API are batched, you might have to scroll back a bit to find the current prompt.
 
-### Tune the prompt examples
+### Interactively tune the prompt examples
 
 The predictions returned by the OpenAI language model will not be perfect, and you might encounter systematic mistakes.
-In this case, you can steer the predictions in the right directions by adding some more examples to the prompt.
+In this case, you can steer the predictions in the right direction by adding some more examples to the prompt.
 You can do this by hitting the small "flag" icon in the top right of the Prodigy UI.
 
 <!-- TODO: example picture -->
