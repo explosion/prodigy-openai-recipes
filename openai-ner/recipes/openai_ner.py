@@ -26,6 +26,23 @@ _ItemT = TypeVar("_ItemT")
 
 DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
 
+HTML_TEMPLATE = """
+<div class="cleaned">
+  <details>
+    <summary>
+      <b>Show the prompt for OpenAI</b>
+    </summary>
+    <p>{{openai.prompt}}</p>
+  </details>
+  <details>
+    <summary>
+      <b>Show the response from OpenAI</b>
+    </summary>
+    <p>{{openai.response}}</p>
+  </details>
+</div>
+"""
+
 # Set up openai
 load_dotenv()  # take environment variables from .env.
 
@@ -56,7 +73,7 @@ class PromptExample:
         entities_by_label = defaultdict(list)
         full_text = example["text"]
         for span in example.get("spans", []):
-            mention = full_text[int(span["start"]) : int(span["end"]) + 1]
+            mention = full_text[int(span["start"]) : int(span["end"])]
             entities_by_label[span["label"]].append(mention)
 
         return cls(text=full_text, entities=entities_by_label)
@@ -272,7 +289,7 @@ def ner_openai_correct(
 ):
     examples = _read_prompt_examples(examples_path)
     nlp = spacy.blank(lang)
-    if not segment:
+    if segment:
         nlp.add_pipe("sentencizer")
     api_key, api_org = _get_api_credentials(model)
     openai = OpenAISuggester(
@@ -304,7 +321,10 @@ def ner_openai_correct(
             "labels": labels,
             "batch_size": batch_size,
             "exclude_by": "input",
-            "blocks": [{"view_id": "ner_manual"}, {"view_id": "html"}],
+            "blocks": [
+                {"view_id": "ner_manual"},
+                {"view_id": "html", "html_template": HTML_TEMPLATE},
+            ],
             "show_flag": True,
             "global_css": (Path(__file__).parent / "style.css").read_text(),
         },
@@ -332,7 +352,7 @@ def ner_openai_fetch(
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
-    segment: bool = True,
+    segment: bool = False,
     examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
     max_examples: int = 2,
