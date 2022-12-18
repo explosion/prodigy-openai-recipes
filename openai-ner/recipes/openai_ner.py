@@ -274,7 +274,7 @@ def ner_openai_correct(
     nlp = spacy.blank(lang)
     if not segment:
         nlp.add_pipe("sentencizer")
-    api_key, api_org = _check_api_credentials(model)
+    api_key, api_org = _get_api_credentials(model)
     openai = OpenAISuggester(
         openai_model=model,
         labels=labels,
@@ -346,7 +346,7 @@ def ner_openai_fetch(
     wait on the OpenAI queries. The downside is that you can't flag examples to be integrated
     into the prompt during the annotation, unlike the ner.openai.correct recipe.
     """
-    api_key, api_org = _check_api_credentials(model)
+    api_key, api_org = _get_api_credentials(model)
     examples = _read_prompt_examples(examples_path)
     nlp = spacy.blank(lang)
     if segment:
