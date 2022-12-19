@@ -74,16 +74,15 @@ You can create your own template and provide it to the recipe with the `--prompt
 Additionally, with `--examples-path` or `-e` you can set the file path of a .y(a)ml or .json file that contains additional examples:
 
 ```
-python -m prodigy ner.openai.correct my_ner_data ./data/reddit_r_cooking_sample.jsonl "ingredient,equipment" -p ./templates/ner_prompt.jinja2 -e ./examples/input.yaml -n 3 -F ./recipes/openai_ner.py
+python -m prodigy ner.openai.correct my_ner_data ./data/reddit_r_cooking_sample.jsonl "ingredient,equipment" 
+-p ./templates/ner_prompt.jinja2 -e ./examples/input.yaml -n 3 -F ./recipes/openai_ner.py
 ```
 
 After receiving the results from the OpenAI API, the Prodigy recipe converts the predictions into an annotation task
 that can be rendered with Prodigy. The task even shows the original prompt as well as the raw answer we obtained
 from the language model.
 
-![](https://user-images.githubusercontent.com/13643239/208323661-cb7838b8-787b-4520-9767-ca27ba23743f.png)
-
-<!-- TODO FIGURE OF EXAMPLE, INCLUDING THE (EXPANDED) HTML BOXES FROM PR #23. -->
+![](https://user-images.githubusercontent.com/8796347/208376744-e94e7ba0-2eca-4cbd-a5db-1b51ab4024d5.png)
 
 <!-- Not sure this is helpful or confusing
 It's very much like using the standard [`ner.correct`](https://prodi.gy/docs/recipes#ner-correct) recipe in Prodi.gy, but we're using GPT-3 as a backend model to make predictions. -->
