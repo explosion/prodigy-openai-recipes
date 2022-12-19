@@ -85,24 +85,24 @@ After receiving the results from the OpenAI API, the Prodigy recipe converts the
 that can be rendered with Prodigy. The task even shows the original prompt as well as the raw answer we obtained
 from the language model.
 
-![](https://user-images.githubusercontent.com/8796347/208376744-e94e7ba0-2eca-4cbd-a5db-1b51ab4024d5.png)
+![](https://user-images.githubusercontent.com/8796347/208484904-72fd79e4-9f14-4c40-9993-97a5776aafb3.png)
 
-Here, we see that the model is able to correctly recognize ingredients right from the start!
+Here, we see that the model is able to correctly recognize dishes, ingredients and cooking equipment right from the start!
 
 The recipe also offers a `--verbose` or `-v` option that includes the exact prompt and response on the terminal as traffic is received.
 Note that because the requests to the API are batched, you might have to scroll back a bit to find the current prompt.
 
 ### Interactively tune the prompt examples
 
-At some point, you might notice a mistake in the predictions of the OpenAI language model. For instance, we noticed a few errors
+At some point, you might notice a mistake in the predictions of the OpenAI language model. For instance, we noticed an error
 in the recognition of cooking equipment in this example:
 
-![](https://user-images.githubusercontent.com/8796347/208378959-901c7a6a-3ea6-4bd0-8739-a7db47f0f5d6.png)
+![](https://user-images.githubusercontent.com/8796347/208485149-a32fa2da-db8a-42a5-a2a7-4708f127b592.png)
 
 If you see these kind of systematic errors, you can steer the predictions in the right direction by correcting the example and then selecting the small "flag" icon
 in the top right of the Prodigy UI:
 
-![](https://user-images.githubusercontent.com/8796347/208380359-cc914ea7-84aa-4ae0-812d-9fceb9f4e72b.png)
+![](https://user-images.githubusercontent.com/8796347/208485453-861fdecf-6283-4a8f-b802-58314f3e496d.png)
 
 Once you hit "accept" on the Prodigy interface, the flagged example will be automatically picked up and added to the examples
 that are sent to the OpenAI API as part of the prompt. Note that because Prodigy batches these requests,
