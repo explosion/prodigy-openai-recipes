@@ -126,17 +126,18 @@ If you want to inspect the flagged instances, you could do:
 python -m prodigy db-out my_ner_data | grep \"flagged\":true > ner_prompt_examples.jsonl
 ```
 
-<!-- TODO: keep this in? Seems to be giving 429 errors.
 ## ner.openai.fetch: Fetch examples up-front
 
 The `ner.openai.correct` recipe fetches examples from OpenAI while annotating, but we've also included a recipe that can fetch a large batch of examples upfront.
 
 ```
-python -m prodigy ner.openai.fetch ./data/reddit_r_cooking_sample.jsonl ./data/reddit_r_cooking_sample_with_predictions.jsonl "cuisine,place,ingredient" -F recipes/ner.py
+python -m prodigy ner.openai.fetch input_data.jsonl predictions.jsonl "ingredient,equipment" -F ./recipes/ner.py
 ```
 
-This will create a `fetch-examples.jsonl` file that can be loaded with the [ner.manual](https://prodi.gy/docs/recipes#ner-manual) recipe.
--->
+This will create a `predictions.jsonl` file that can be loaded with the [ner.manual](https://prodi.gy/docs/recipes#ner-manual) recipe.
+
+Note that the OpenAI API might return "429 Too Many Request" errors when requesting too much data at once - in this case it's best to ensure you only request 
+100 orso examples at a time.
 
 ## Training an NER model with Hugging Face
 
