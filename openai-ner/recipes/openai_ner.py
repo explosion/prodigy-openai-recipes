@@ -297,6 +297,8 @@ def ner_openai_correct(
     if segment:
         nlp.add_pipe("sentencizer")
     api_key, api_org = _get_api_credentials(model)
+    # ensure consistency of labels
+    labels = [ll.lower() for ll in labels]
     openai = OpenAISuggester(
         openai_model=model,
         labels=labels,
