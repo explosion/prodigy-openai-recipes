@@ -7,7 +7,7 @@ to go through these predictions and curate them. This allows us to obtain a
 gold-standard dataset pretty quickly, and train a smaller, supervised model that fits
 our exact needs and use-case.
 
-![](https://user-images.githubusercontent.com/13643239/208323588-ba039581-e924-461e-a389-7ba3d4244f5d.png)
+![](https://user-images.githubusercontent.com/13643239/208497043-178beb47-f7c6-4b3e-a253-9e12e2f0c807.png)
 
 ## Setup and Install
 
