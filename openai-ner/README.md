@@ -31,7 +31,7 @@ OPENAI_ORG = "org-..."
 OPENAI_KEY = "sk-..."
 ```
 
-## ner.openai.correct
+## ner.openai.correct: NER annotation with zero- or few-shot learning
 
 This recipe marks entity predictions obtained from a large language model and allows you to flag them as correct, or to
 manually curate them. This allows you to quickly gather a gold-standard dataset through zero-shot or few-shot learning.
@@ -86,25 +86,30 @@ from the language model.
 
 ![](https://user-images.githubusercontent.com/8796347/208376744-e94e7ba0-2eca-4cbd-a5db-1b51ab4024d5.png)
 
+Here, we see that the model is able to correctly recognize ingredients right from the start!
+
 The recipe also offers a `--verbose` or `-v` option that includes the exact prompt and response on the terminal as traffic is received.
 Note that because the requests to the API are batched, you might have to scroll back a bit to find the current prompt.
 
 ### Interactively tune the prompt examples
 
-The predictions returned by the OpenAI language model will not be perfect, and you might encounter systematic mistakes.
-In this case, you can steer the predictions in the right direction by adding some more examples to the prompt.
-You can do this by hitting the small "flag" icon in the top right of the Prodigy UI and then hit "accept" on the Prodigy
-interface as soon as all correct entities are highlighted.
+At some point, you might notice a mistake in the predictions of the OpenAI language model. For instance, we noticed a few errors 
+in the recognition of cooking equipment in this example:
 
-![](https://user-images.githubusercontent.com/13643239/208323787-0b7bfdef-98c3-4a9f-a4d3-28ec98f4deb6.png)
+![](https://user-images.githubusercontent.com/8796347/208378959-901c7a6a-3ea6-4bd0-8739-a7db47f0f5d6.png)
 
-The flagged example will be automatically
-picked up and added to the examples that are sent to the OpenAI API as part of the prompt. Note that because Prodigy batches these requests,
+In this case, you can steer the predictions in the right direction by correcting the example and then selecting the small "flag" icon 
+in the top right of the Prodigy UI:
+
+![](https://user-images.githubusercontent.com/8796347/208380359-cc914ea7-84aa-4ae0-812d-9fceb9f4e72b.png)
+
+Once you hit "accept" on the Prodigy interface, the flagged example will be automatically picked up and added to the examples 
+that are sent to the OpenAI API as part of the prompt. Note that because Prodigy batches these requests,
 the prompt will be updated with a slight delay, after the next batch of prompts is sent to OpenAI.
 You can experiment with making the batch size (`--batch-size` or `-b`) smaller to have the change come into effect sooner,
 but this might negatively impact the speed of the annotation workflow.
 
-## db-out: obtain the curated examples
+### db-out: obtain the curated examples
 
 After you've curated a set of predictions, you can obtain the results with [`db-out`](https://prodi.gy/docs/recipes#db-out):
 
