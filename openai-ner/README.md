@@ -138,7 +138,7 @@ python -m prodigy ner.openai.fetch ./data/reddit_r_cooking_sample.jsonl ./data/r
 This will create a `fetch-examples.jsonl` file that can be loaded with the [ner.manual](https://prodi.gy/docs/recipes#ner-manual) recipe.
 -->
 
-## Training a Model
+## Training an NER model with Hugging Face
 
 After you've annotated enough examples - say 100 to start - you can try training a model. We've included a script to automatically train a model using HuggingFace's Transformers library. 
 
