@@ -150,4 +150,4 @@ python -m prodigy data-to-spacy ./data/annotations2 --ner my_ner_data -es 0
 python scripts/train_hf_ner.py ./data/annotations2/train.spacy ner-model
 ```
 
-This will create the file `./data/annotations2/train.spacy` file with your annotated documents (you'll also see a warning about not creating evaluation data, but that's OK, the training script will create it). The resulting model will be saved to the `ner-model/` directory.
+This will create the file `./data/annotations2/train.spacy` with your annotated documents (you'll also see a warning about not creating evaluation data, but that's OK, the training script will create it). The resulting model will be saved to the `ner-model/` directory.
