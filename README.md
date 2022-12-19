@@ -138,8 +138,8 @@ in the dataset contains the original text, the tokens, span annotations denoting
 You can also export the data to spaCy's [binary format](https://spacy.io/api/data-formats#training), using [`data-to-spacy`](https://prodi.gy/docs/recipes#data-to-spacy). This format lets you load in the annotations as spaCy `Doc` objects, which can be convenient for further conversion. The `data-to-spacy` command also makes it easy to train an NER model with spaCy, as follows:
 
 ```bash
-python -m prodigy data-to-spacy ./data/annotations3/ --ner mydata -es 0.2
-python -m spacy train ./data/annotations3/config.cfg --paths.train ./data/annotations3/train.spacy --paths.dev ./data/annotations3/dev.spacy
+python -m prodigy data-to-spacy ./data/annotations/ --ner my_ner_data -es 0.2
+python -m spacy train ./data/annotations/config.cfg --paths.train ./data/annotations/train.spacy --paths.dev ./data/annotations/dev.spacy
 ```
 
 We've also included an experimental script to load in the `.spacy` binary format and train a model with the HuggingFace `transformers` library. You can convert export the annotations and run the script like this:
