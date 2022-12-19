@@ -77,7 +77,7 @@ Additionally, with `--examples-path` or `-e` you can set the file path of a .y(a
 
 ```
 python -m prodigy ner.openai.correct my_ner_data ./data/reddit_r_cooking_sample.jsonl "ingredient,equipment" 
--p ./templates/ner_prompt.jinja2 -e ./examples/input.yaml -n 3 -F ./recipes/openai_ner.py
+-p ./templates/ner_prompt.jinja2 -e ./examples/input.yaml -n 2 -F ./recipes/openai_ner.py
 ```
 
 After receiving the results from the OpenAI API, the Prodigy recipe converts the predictions into an annotation task
@@ -98,7 +98,7 @@ in the recognition of cooking equipment in this example:
 
 ![](https://user-images.githubusercontent.com/8796347/208378959-901c7a6a-3ea6-4bd0-8739-a7db47f0f5d6.png)
 
-In this case, you can steer the predictions in the right direction by correcting the example and then selecting the small "flag" icon 
+If you see these kind of systematic errors, you can steer the predictions in the right direction by correcting the example and then selecting the small "flag" icon 
 in the top right of the Prodigy UI:
 
 ![](https://user-images.githubusercontent.com/8796347/208380359-cc914ea7-84aa-4ae0-812d-9fceb9f4e72b.png)
@@ -117,29 +117,30 @@ After you've curated a set of predictions, you can obtain the results with [`db-
 python -m prodigy db-out my_ner_data  > ner_data.jsonl
 ```
 
+The format of the exported annotations contains all the data you need to train a smaller model downstream. Each example 
+in the dataset contains the original text, the tokens, span annotations denoting the entities, etc.
+
 If you want to inspect the flagged instances, you could do:
 
 ```
 python -m prodigy db-out my_ner_data | grep \"flagged\":true > ner_prompt_examples.jsonl
 ```
 
-<!-- TODO: keep this in?
-## ner.openai.fetch
+<!-- TODO: keep this in? Seems to be giving 429 errors.
+## ner.openai.fetch: Fetch examples up-front
 
-Right now we are fetching examples from OpenAI while annotating, but we've also included a recipe that can fetch a large batch of examples upfront.
+The `ner.openai.correct` recipe fetches examples from OpenAI while annotating, but we've also included a recipe that can fetch a large batch of examples upfront.
 
 ```
-python -m prodigy ner.openai.fetch examples.jsonl fetched-examples.jsonl "cuisine,place,ingredient" -F recipes/ner.py
+python -m prodigy ner.openai.fetch ./data/reddit_r_cooking_sample.jsonl ./data/reddit_r_cooking_sample_with_predictions.jsonl "cuisine,place,ingredient" -F recipes/ner.py
 ```
 
 This will create a `fetch-examples.jsonl` file that can be loaded with the [ner.manual](https://prodi.gy/docs/recipes#ner-manual) recipe.
 -->
 
-<!-- TODO: keep this in?
-
 ## Training a Model
 
-After you've annotated enough examples - say 100 to start - you can try training a model. We've included a script to automatically train a model using HuggingFace's Transformers library.
+After you've annotated enough examples - say 100 to start - you can try training a model. We've included a script to automatically train a model using HuggingFace's Transformers library. 
 
 First, export your data to spaCy's format with Prodigy - while we aren't training a spaCy model, the data will be easy to convert for HuggingFace.
 
@@ -155,8 +156,7 @@ To train the model, run the training script like this:
 python scripts/train_hf_ner.py data/train.spacy ner-model
 ```
 
-This will run for a while and train your first model. With just 100 annotations performance may not be great, but you should see it improve over each epoch, which is a sign that your data is consistent and you're on the right track. The resulting model will be saved to the `ner-model/` directory.
+This will run for a while and train your first model. With just 100 annotations performance may not be great, but you should see it improve over each epoch, which is a sign that your data is consistent and you're on the right track. The resulting model will be saved to the `ner-model/` directory. 
 
 From here all you have to do is continue to iterate on your model until you're happy with it.
 
--->
