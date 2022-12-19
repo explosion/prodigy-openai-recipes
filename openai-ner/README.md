@@ -102,7 +102,7 @@ interface as soon as all correct entities are highlighted.
 
 The flagged example will be automatically
 picked up and added to the examples that are sent to the OpenAI API as part of the prompt. Note that because Prodigy batches these requests,
-the prompt will be updated with a slight delay, when the next batch of prompts will be sent to OpenAI.
+the prompt will be updated with a slight delay, after the next batch of prompts is sent to OpenAI.
 You can experiment with making the batch size (`--batch-size` or `-b`) smaller to have the change come into effect sooner,
 but this might negatively impact the speed of the annotation workflow.
 
