@@ -142,7 +142,7 @@ python -m prodigy data-to-spacy ./data/annotations/ --ner my_ner_data -es 0.2
 python -m spacy train ./data/annotations/config.cfg --paths.train ./data/annotations/train.spacy --paths.dev ./data/annotations/dev.spacy
 ```
 
-We've also included an experimental script to load in the `.spacy` binary format and train a model with the HuggingFace `transformers` library. You can convert export the annotations and run the script like this:
+We've also included an experimental script to load in the `.spacy` binary format and train a model with the HuggingFace `transformers` library. You can export the annotations and run the script like this:
 
 ```
 pip install -r requirements_train.txt
