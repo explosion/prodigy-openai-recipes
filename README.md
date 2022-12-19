@@ -9,6 +9,8 @@ our exact needs and use-case.
 
 ![](https://user-images.githubusercontent.com/13643239/208497043-178beb47-f7c6-4b3e-a253-9e12e2f0c807.png)
 
+https://user-images.githubusercontent.com/13643239/208504034-0ab6bcbe-6d2b-415d-8257-233f2074ba31.mp4
+
 ## Setup and Install
 
 Make sure to [install Prodigy](https://prodi.gy/docs/install) as well as a few additional Python dependencies:
