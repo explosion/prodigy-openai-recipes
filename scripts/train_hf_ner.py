@@ -161,6 +161,6 @@ def train_hf_ner(infile: str, outdir: str, base: str = "distilbert-base-uncased"
 
 
 if __name__ == "__main__":
-    app = typer.Typer(name="Convert spaCy to HF NER data", no_args_is_help=True)
+    app = typer.Typer(name="Train a HuggingFace NER model from spaCy formatted data", no_args_is_help=True)
     app.command("train_hf_ner")(train_hf_ner)
     app()
