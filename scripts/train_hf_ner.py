@@ -64,11 +64,9 @@ def spacy2hf(fname: Union[str, Path], tokenizer: AutoTokenizer) -> List[BatchEnc
             labels.append(ent_label)
 
         # now do the hf tokenization
-        # maybe need truncate=true?
         tokens_hf = tokenizer(toks, truncation=True, is_split_into_words=True)
         labels_hf = []
 
-        # TODO figure out batch index
         for word_id in tokens_hf.word_ids():
             if word_id is None:
                 # for things like [CLS]
@@ -126,6 +124,9 @@ def train_ner(base_model, tokenizer, label_list, train_data, test_data):
         per_device_eval_batch_size=batch_size,
         num_train_epochs=20,
         weight_decay=1e-5,
+        disable_tqdm=True,
+        # specify the optimizer to avoid a deprecation warning
+        optim="adamw_torch",
     )
 
     data_collator = DataCollatorForTokenClassification(tokenizer)
@@ -160,6 +161,6 @@ def train_hf_ner(infile: str, outdir: str, base: str = "distilbert-base-uncased"
 
 
 if __name__ == "__main__":
-    app = typer.Typer(name="Convert spaCy to HF NER data", no_args_is_help=True)
+    app = typer.Typer(name="Train a HuggingFace NER model from spaCy formatted data", no_args_is_help=True)
     app.command("train_hf_ner")(train_hf_ner)
     app()
