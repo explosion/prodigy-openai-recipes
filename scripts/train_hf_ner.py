@@ -126,6 +126,9 @@ def train_ner(base_model, tokenizer, label_list, train_data, test_data):
         per_device_eval_batch_size=batch_size,
         num_train_epochs=20,
         weight_decay=1e-5,
+        disable_tqdm=True,
+        # specify the optimizer to avoid a deprecation warning
+        optim="adamw_torch",
     )
 
     data_collator = DataCollatorForTokenClassification(tokenizer)
