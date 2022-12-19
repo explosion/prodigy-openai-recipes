@@ -21,7 +21,7 @@ python -m pip install -r requirements.txt
 
 With `XXXX-XXXX-XXXX-XXXX` being your personal Prodigy license key.
 
-Then, create a new API key from [https://beta.openai.com/account/api-keys](openai.com) or fetch an existing
+Then, create a new API key from [openai.com](https://beta.openai.com/account/api-keys) or fetch an existing
 one. Record the secret key as well as the [organization key](https://beta.openai.com/account/org-settings)
 and make sure these are available as environmental variables. For instance, set them in a `.env` file in the
 root directory:
