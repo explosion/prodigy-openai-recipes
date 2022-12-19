@@ -35,6 +35,8 @@ OPENAI_KEY = "sk-..."
 
 This recipe marks entity predictions obtained from a large language model and allows you to flag them as correct, or to
 manually curate them. This allows you to quickly gather a gold-standard dataset through zero-shot or few-shot learning.
+It's very much like using the standard [`ner.correct`](https://prodi.gy/docs/recipes#ner-correct) recipe in Prodi.gy, 
+but we're using GPT-3 as a backend model to make predictions. 
 
 ```
 python -m prodigy ner.openai.correct dataset filepath labels [--options] -F ./recipes/openai_ner.py
@@ -83,9 +85,6 @@ that can be rendered with Prodigy. The task even shows the original prompt as we
 from the language model.
 
 ![](https://user-images.githubusercontent.com/8796347/208376744-e94e7ba0-2eca-4cbd-a5db-1b51ab4024d5.png)
-
-<!-- Not sure this is helpful or confusing
-It's very much like using the standard [`ner.correct`](https://prodi.gy/docs/recipes#ner-correct) recipe in Prodi.gy, but we're using GPT-3 as a backend model to make predictions. -->
 
 The recipe also offers a `--verbose` or `-v` option that includes the exact prompt and response on the terminal as traffic is received.
 Note that because the requests to the API are batched, you might have to scroll back a bit to find the current prompt.
