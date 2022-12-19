@@ -253,6 +253,7 @@ class OpenAISuggester:
         for line in text.strip().split("\n"):
             if line and ":" in line:
                 label, phrases = line.split(":", 1)
+                label = label.lower()
                 if phrases.strip():
                     phrases = [phrase.strip() for phrase in phrases.strip().split(",")]
                     output.append((label, phrases))
