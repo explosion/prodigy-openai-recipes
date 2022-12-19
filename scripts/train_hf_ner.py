@@ -64,11 +64,9 @@ def spacy2hf(fname: Union[str, Path], tokenizer: AutoTokenizer) -> List[BatchEnc
             labels.append(ent_label)
 
         # now do the hf tokenization
-        # maybe need truncate=true?
         tokens_hf = tokenizer(toks, truncation=True, is_split_into_words=True)
         labels_hf = []
 
-        # TODO figure out batch index
         for word_id in tokens_hf.word_ids():
             if word_id is None:
                 # for things like [CLS]
