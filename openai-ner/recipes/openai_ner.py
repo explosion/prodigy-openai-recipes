@@ -1,27 +1,28 @@
-from typing import Callable, Dict, Iterable, List, Tuple, TypeVar, cast, Optional
 import copy
 import os
-import time
-import tqdm
 import sys
+import time
+from collections import defaultdict
+from dataclasses import dataclass
+from pathlib import Path
+from typing import (Callable, Dict, Iterable, List, Optional, Tuple, TypeVar,
+                    cast)
+
 import httpx
 import jinja2
-import rich
-from rich.panel import Panel
-from pathlib import Path
-from dataclasses import dataclass
-from collections import defaultdict
-from dotenv import load_dotenv
-
-import srsly
-import spacy
-from spacy.language import Language
-from spacy.util import filter_spans
 import prodigy
 import prodigy.components.db
 import prodigy.components.preprocess
 import prodigy.util
+import rich
+import spacy
+import srsly
+import tqdm
+from dotenv import load_dotenv
 from prodigy.util import msg
+from rich.panel import Panel
+from spacy.language import Language
+from spacy.util import filter_spans
 
 _ItemT = TypeVar("_ItemT")
 
@@ -537,7 +538,7 @@ def _find_substrings(
     if not case_sensitive:
         text = text.lower()
         substrings = [s.lower() for s in substrings]
-    substrings = list(set(substrings))
+    substrings = _unique(substrings)
     offsets = []
     for substring in substrings:
         search_from = 0
@@ -552,3 +553,14 @@ def _find_substrings(
                 break
             search_from = end
     return offsets
+
+
+def _unique(items: List[str]) -> List[str]:
+    """Remove duplicates without changing order"""
+    seen = set()
+    output = []
+    for item in items:
+        if item not in seen:
+            output.append(item)
+            seen.add(item)
+    return output
