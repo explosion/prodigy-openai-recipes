@@ -63,17 +63,26 @@ class PromptExample:
         )
 
     @classmethod
-    def from_prodigy(cls, example: Dict) -> "PromptExample":
-        """Create a prompt example from Prodigy's format."""
+    def from_prodigy(cls, example: Dict, labels: Iterable[str]) -> "PromptExample":
+        """Create a prompt example from Prodigy's format.
+        Only entities with a label from the given set will be retained.
+        The given set of labels is assumed to be already normalized.
+        """
         if "text" not in example:
             raise ValueError("Cannot make PromptExample without text")
         entities_by_label = defaultdict(list)
         full_text = example["text"]
         for span in example.get("spans", []):
-            mention = full_text[int(span["start"]) : int(span["end"])]
-            entities_by_label[span["label"]].append(mention)
+            label = _normalize_label(span["label"])
+            if label in labels:
+                mention = full_text[int(span["start"]) : int(span["end"])]
+                entities_by_label[label].append(mention)
 
         return cls(text=full_text, entities=entities_by_label)
+
+
+def _normalize_label(label: str) -> str:
+    return label.lower()
 
 
 class OpenAISuggester:
@@ -109,7 +118,7 @@ class OpenAISuggester:
     ):
         self.prompt_template = prompt_template
         self.model = openai_model
-        self.labels = labels
+        self.labels = [_normalize_label(label) for label in labels]
         self.max_examples = max_examples
         self.verbose = verbose
         self.segment = segment
@@ -134,7 +143,7 @@ class OpenAISuggester:
     def update(self, examples: Iterable[Dict]) -> float:
         for eg in examples:
             if PromptExample.is_flagged(eg):
-                self.add_example(PromptExample.from_prodigy(eg))
+                self.add_example(PromptExample.from_prodigy(eg, self.labels))
         return 0.0
 
     def add_example(self, example: PromptExample) -> None:
@@ -183,13 +192,15 @@ class OpenAISuggester:
             response = self._parse_response(example["openai"]["response"])
             spacy_spans = []
             for label, phrases in response:
-                offsets = _find_substrings(doc.text, phrases)
-                for start, end in offsets:
-                    span = doc.char_span(
-                        start, end, alignment_mode="contract", label=label
-                    )
-                    if span is not None:
-                        spacy_spans.append(span)
+                label = _normalize_label(label)
+                if label in self.labels:
+                    offsets = _find_substrings(doc.text, phrases)
+                    for start, end in offsets:
+                        span = doc.char_span(
+                            start, end, alignment_mode="contract", label=label
+                        )
+                        if span is not None:
+                            spacy_spans.append(span)
             # This step prevents the same token from being used in multiple spans.
             # If there's a conflict, the longer span is preserved.
             spacy_spans = filter_spans(spacy_spans)
@@ -253,10 +264,11 @@ class OpenAISuggester:
         for line in text.strip().split("\n"):
             if line and ":" in line:
                 label, phrases = line.split(":", 1)
-                label = label.lower()
-                if phrases.strip():
-                    phrases = [phrase.strip() for phrase in phrases.strip().split(",")]
-                    output.append((label, phrases))
+                label = _normalize_label(label)
+                if label in self.labels:
+                    if phrases.strip():
+                        phrases = [phrase.strip() for phrase in phrases.strip().split(",")]
+                        output.append((label, phrases))
         return output
 
 
@@ -297,8 +309,6 @@ def ner_openai_correct(
     if segment:
         nlp.add_pipe("sentencizer")
     api_key, api_org = _get_api_credentials(model)
-    # ensure consistency of labels
-    labels = [ll.lower() for ll in labels]
     openai = OpenAISuggester(
         openai_model=model,
         labels=labels,
@@ -317,7 +327,7 @@ def ner_openai_correct(
         if db_examples:
             for eg in db_examples:
                 if PromptExample.is_flagged(eg):
-                    openai.add_example(PromptExample.from_prodigy(eg))
+                    openai.add_example(PromptExample.from_prodigy(eg, openai.labels))
     stream = cast(Iterable[Dict], srsly.read_jsonl(filepath))
     return {
         "dataset": dataset,
@@ -325,7 +335,7 @@ def ner_openai_correct(
         "stream": openai(stream, batch_size=batch_size, nlp=nlp),
         "update": openai.update,
         "config": {
-            "labels": labels,
+            "labels": openai.labels,
             "batch_size": batch_size,
             "exclude_by": "input",
             "blocks": [
