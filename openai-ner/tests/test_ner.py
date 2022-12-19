@@ -117,7 +117,7 @@ PLACE: Germany
         (
             "Does it take longest when nested and shorter is last?",
             "one two three four",
-            [("a", 0, 1), ("b", 0, 2)],
+            [("b", 0, 2), ("a", 0, 1)],
             [("b", 0, 2)],
         ),
         (
