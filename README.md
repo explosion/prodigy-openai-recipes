@@ -109,23 +109,6 @@ the prompt will be updated with a slight delay, after the next batch of prompts 
 You can experiment with making the batch size (`--batch-size` or `-b`) smaller to have the change come into effect sooner,
 but this might negatively impact the speed of the annotation workflow.
 
-### db-out: obtain the curated examples
-
-After you've curated a set of predictions, you can obtain the results with [`db-out`](https://prodi.gy/docs/recipes#db-out):
-
-```
-python -m prodigy db-out my_ner_data  > ner_data.jsonl
-```
-
-The format of the exported annotations contains all the data you need to train a smaller model downstream. Each example
-in the dataset contains the original text, the tokens, span annotations denoting the entities, etc.
-
-If you want to inspect the flagged instances, you could do:
-
-```
-python -m prodigy db-out my_ner_data | grep \"flagged\":true > ner_prompt_examples.jsonl
-```
-
 ## ner.openai.fetch: Fetch examples up-front
 
 The `ner.openai.correct` recipe fetches examples from OpenAI while annotating, but we've also included a recipe that can fetch a large batch of examples upfront.
@@ -139,24 +122,29 @@ This will create a `predictions.jsonl` file that can be loaded with the [ner.man
 Note that the OpenAI API might return "429 Too Many Request" errors when requesting too much data at once - in this case it's best to ensure you only request 
 100 orso examples at a time.
 
-## Training an NER model with Hugging Face
+## Exporting the annotations and training an NER model
 
-After you've annotated enough examples - say 100 to start - you can try training a model. We've included a script to automatically train a model using HuggingFace's Transformers library.
+After you've curated a set of predictions, you can export the results with [`db-out`](https://prodi.gy/docs/recipes#db-out):
 
-First, export your data to spaCy's format with Prodigy - while we aren't training a spaCy model, the data will be easy to convert for HuggingFace.
+```
+python -m prodigy db-out my_ner_data  > ner_data.jsonl
+```
+
+The format of the exported annotations contains all the data you need to train a smaller model downstream. Each example
+in the dataset contains the original text, the tokens, span annotations denoting the entities, etc.
+
+You can also export the data to spaCy's binary format, using [`data-to-spacy`](https://prodi.gy/docs/recipes#data-to-spacy). This format lets you load in the annotations as spaCy `Doc` objects, which can be convenient for further conversion. The `data-to-spacy` command also makes it easy to train an NER model with spaCy, as follows:
+
+```
+python -m prodigy data-to-spacy ./data/annotations3/ --ner mydata -es 0.2
+python -m spacy train ./data/annotations3/config.cfg --paths.train ./data/annotations3/train.spacy --paths.dev ./data/annotations3/dev.spacy
+```
+
+We've also included an experimental script to load in the `.spacy` binary format and train a model with the HuggingFace Transformers library. You can convert export the annotations and run the script like this:
 
 ```
 python -m prodigy data-to-spacy cooking-openai data/ -ns 0
-```
-
-This will create the file `data/train.spacy` with your annotated documents. You'll see a warning about not creating evaluation data, but that's OK because our training script will create it.
-
-To train the model, run the training script like this:
-
-```
 python scripts/train_hf_ner.py data/train.spacy ner-model
 ```
 
-This will run for a while and train your first model. With just 100 annotations performance may not be great, but you should see it improve over each epoch, which is a sign that your data is consistent and you're on the right track. The resulting model will be saved to the `ner-model/` directory.
-
-From here all you have to do is continue to iterate on your model until you're happy with it.
+This will create the file `data/train.spacy` with your annotated documents (you'll also see a warning about not creating evaluation data, but that's OK, the training script will create it). The resulting model will be saved to the `ner-model/` directory.
