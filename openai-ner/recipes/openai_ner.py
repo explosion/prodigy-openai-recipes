@@ -1,44 +1,45 @@
+from typing import Callable, Dict, Iterable, List, Tuple, TypeVar, cast, Optional
 import copy
 import os
-from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Tuple, TypeVar, cast, Optional
 import time
 import tqdm
 import sys
-from dataclasses import dataclass
-from collections import defaultdict
-
 import httpx
-import spacy
-import srsly
-from dotenv import load_dotenv
-from spacy.language import Language
-import prodigy
-from prodigy.components.preprocess import split_sentences, add_tokens
-import prodigy.util
-from prodigy.util import msg
-import prodigy.components.db
 import jinja2
 import rich
 from rich.panel import Panel
+from pathlib import Path
+from dataclasses import dataclass
+from collections import defaultdict
+from dotenv import load_dotenv
+
+import srsly
+import spacy
+from spacy.language import Language
+from spacy.util import filter_spans
+import prodigy
+import prodigy.components.db
+import prodigy.components.preprocess
+import prodigy.util
+from prodigy.util import msg
 
 _ItemT = TypeVar("_ItemT")
 
 DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
+CSS_FILE_PATH = Path(__file__).parent / "style.css"
+
+# Set up openai access by taking environment variables from .env.
+load_dotenv()
 
 HTML_TEMPLATE = """
 <div class="cleaned">
   <details>
-    <summary>
-      <b>Show the prompt for OpenAI</b>
-    </summary>
-    <p>{{openai.prompt}}</p>
+    <summary>Show the prompt for OpenAI</summary>
+    <pre>{{openai.prompt}}</pre>
   </details>
   <details>
-    <summary>
-      <b>Show the response from OpenAI</b>
-    </summary>
-    <p>{{openai.response}}</p>
+    <summary>Show the response from OpenAI</summary>
+    <pre>{{openai.response}}</pre>
   </details>
 </div>
 """
@@ -60,7 +61,7 @@ class PromptExample:
         in the prompt."""
 
         return (
-            example.get("flagged") == True
+            example.get("flagged") is True
             and example.get("answer") == "accept"
             and "text" in example
         )
@@ -128,7 +129,7 @@ class OpenAISuggester:
         self, stream: Iterable[Dict], *, nlp: Language, batch_size: int
     ) -> Iterable[Dict]:
         if self.segment:
-            stream = split_sentences(nlp, stream)
+            stream = prodigy.components.preprocess.split_sentences(nlp, stream)
 
         stream = self.stream_suggestions(stream, batch_size=batch_size)
         stream = self.format_suggestions(stream, nlp=nlp)
@@ -150,12 +151,10 @@ class OpenAISuggester:
     def stream_suggestions(
         self, stream: Iterable[Dict], batch_size: int
     ) -> Iterable[Dict]:
-        """Get zero-shot or few-shot suggested NER annotationss from OpenAI.
+        """Get zero-shot or few-shot suggested NER annotations from OpenAI.
 
-        Given a stream of example dictionaries, we calculate a
-        prompt, get a response from OpenAI, and add them to the
-        dictionary. A further function then takes care of parsing
-        the response and setting up the span annotations for Prodigy.
+        Given a stream of input examples, we define a prompt, get a response from OpenAI,
+        and yield each example with their predictions to the output stream.
         """
         for batch in _batch_sequence(stream, batch_size):
             prompts = [
@@ -176,29 +175,38 @@ class OpenAISuggester:
     def format_suggestions(
         self, stream: Iterable[Dict], *, nlp: Language
     ) -> Iterable[Dict]:
-        stream = add_tokens(nlp, stream, skip=True)  # type: ignore
+        """Parse the examples in the stream and set up span annotations
+        to display in the Prodigy UI.
+        """
+        stream = prodigy.components.preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
         for example in stream:
             example = copy.deepcopy(example)
-            # This tokenizes the text with spaCy, so that the token boundaries can be used
-            # during the annotation. Without the token boundaries, you need to get the
-            # annotation exactly on the characters, which is annoying.
+            # This tokenizes the text with spaCy, so that annotations on the Prodigy UI
+            # can automatically snap to token boundaries, making the process much more efficient.
             doc = nlp.make_doc(example["text"])
             response = self._parse_response(example["openai"]["response"])
-            spans = []
+            spacy_spans = []
             for label, phrases in response:
                 offsets = _find_substrings(doc.text, phrases)
                 for start, end in offsets:
-                    span = doc.char_span(start, end, alignment_mode="contract")
+                    span = doc.char_span(
+                        start, end, alignment_mode="contract", label=label
+                    )
                     if span is not None:
-                        spans.append(
-                            {
-                                "label": label,
-                                "start": start,
-                                "end": end,
-                                "token_start": span.start,
-                                "token_end": span.end - 1,
-                            }
-                        )
+                        spacy_spans.append(span)
+            # This step prevents the same token from being used in multiple spans.
+            # If there's a conflict, the longer span is preserved.
+            spacy_spans = filter_spans(spacy_spans)
+            spans = [
+                {
+                    "label": span.label_,
+                    "start": span.start_char,
+                    "end": span.end_char,
+                    "token_start": span.start,
+                    "token_end": span.end - 1,
+                }
+                for span in spacy_spans
+            ]
             example = prodigy.util.set_hashes({**example, "spans": spans})
             yield example
 
@@ -260,18 +268,13 @@ class OpenAISuggester:
     dataset=("Dataset to save answers to", "positional", None, str),
     filepath=("Path to jsonl data to annotate", "positional", None, Path),
     labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
-    model=("GPT-3 model to use for completion", "option", "m", str),
-    examples_path=(
-        "Path to examples to help define the task",
-        "option",
-        "e",
-        Path,
-    ),
+    model=("GPT-3 model to use for initial predictions", "option", "m", str),
+    examples_path=("Path to examples to help define the task", "option", "e", Path),
     lang=("Language to use for tokenizer", "option", "l", str),
     max_examples=("Max examples to include in prompt", "option", "n", int),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
-    segment=("Split sentences", "flag", "U", bool),
+    segment=("Split articles into sentences", "flag", "U", bool),
     verbose=("Print extra information to terminal", "flag", "v", bool),
 )
 def ner_openai_correct(
@@ -326,7 +329,7 @@ def ner_openai_correct(
                 {"view_id": "html", "html_template": HTML_TEMPLATE},
             ],
             "show_flag": True,
-            "global_css": (Path(__file__).parent / "style.css").read_text(),
+            "global_css": CSS_FILE_PATH.read_text(),
         },
     }
 
@@ -465,7 +468,7 @@ def _read_prompt_examples(path: Optional[Path]) -> List[PromptExample]:
 
 def _load_template(path: Path) -> jinja2.Template:
     # I know jinja has a lot of complex file loading stuff,
-    # but we're not using the inheritence etc that makes
+    # but we're not using the inheritance etc that makes
     # that stuff worthwhile.
     if not path.suffix == ".jinja2":
         msg.fail(
