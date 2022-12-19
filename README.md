@@ -151,3 +151,7 @@ python scripts/train_hf_ner.py ./data/annotations2/train.spacy ner-model
 ```
 
 This will create the file `./data/annotations2/train.spacy` with your annotated documents (you'll also see a warning about not creating evaluation data, but that's OK, the training script will create it). The resulting model will be saved to the `ner-model/` directory.
+
+## What's next?
+
+There’s lots of interesting follow-up experiments to this, and lots of ways to adapt the basic idea to different tasks or data sets. We’ll definitely follow up with a similar recipe for text categorization, but you can also adapt the recipe yourself in the meantime. We’re also interested to try out different prompts. It’s unclear how much the format the annotations are requested in might change the model’s predictions, or whether there’s a shorter prompt that might perform just as well. We also want to run some end-to-end experiments.
