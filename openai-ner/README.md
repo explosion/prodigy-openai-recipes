@@ -58,12 +58,13 @@ python -m prodigy ner.openai.correct dataset filepath labels [--options] -F ./re
 
 ### Example usage
 
-Let's say we want to recognize ingredients and cooking equipment from some text we obtained from a cooking subreddit.
+Let's say we want to recognize dishes, ingredients and cooking equipment from some text we obtained from a cooking subreddit.
 We'll send the text to GPT-3, hosted by OpenAI, and provide an annotation prompt to explain
 to the language model the type of predictions we want. Something like:
 
 ```
 From the text below, extract the following entities in the following format:
+dish: <comma delimited list of strings>
 ingredient: <comma delimited list of strings>
 equipment: <comma delimited list of strings>
 
@@ -76,7 +77,7 @@ You can create your own template and provide it to the recipe with the `--prompt
 Additionally, with `--examples-path` or `-e` you can set the file path of a .y(a)ml or .json file that contains additional examples:
 
 ```
-python -m prodigy ner.openai.correct my_ner_data ./data/reddit_r_cooking_sample.jsonl "ingredient,equipment"
+python -m prodigy ner.openai.correct my_ner_data ./data/reddit_r_cooking_sample.jsonl "dish,ingredient,equipment"
 -p ./templates/ner_prompt.jinja2 -e ./examples/input.yaml -n 2 -F ./recipes/openai_ner.py
 ```
 
@@ -131,7 +132,7 @@ python -m prodigy db-out my_ner_data | grep \"flagged\":true > ner_prompt_exampl
 The `ner.openai.correct` recipe fetches examples from OpenAI while annotating, but we've also included a recipe that can fetch a large batch of examples upfront.
 
 ```
-python -m prodigy ner.openai.fetch input_data.jsonl predictions.jsonl "ingredient,equipment" -F ./recipes/ner.py
+python -m prodigy ner.openai.fetch input_data.jsonl predictions.jsonl "dish,ingredient,equipment" -F ./recipes/ner.py
 ```
 
 This will create a `predictions.jsonl` file that can be loaded with the [ner.manual](https://prodi.gy/docs/recipes#ner-manual) recipe.
