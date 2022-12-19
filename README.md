@@ -145,8 +145,9 @@ python -m spacy train ./data/annotations3/config.cfg --paths.train ./data/annota
 We've also included an experimental script to load in the `.spacy` binary format and train a model with the HuggingFace `transformers` library. You can convert export the annotations and run the script like this:
 
 ```
-python -m prodigy data-to-spacy cooking-openai data/ -ns 0
-python scripts/train_hf_ner.py data/train.spacy ner-model
+pip install -r requirements_train.txt
+python -m prodigy data-to-spacy ./data/annotations2 --ner my_ner_data -es 0
+python scripts/train_hf_ner.py ./data/annotations2/train.spacy ner-model
 ```
 
-This will create the file `data/train.spacy` with your annotated documents (you'll also see a warning about not creating evaluation data, but that's OK, the training script will create it). The resulting model will be saved to the `ner-model/` directory.
+This will create the file `./data/annotations2/train.spacy` file with your annotated documents (you'll also see a warning about not creating evaluation data, but that's OK, the training script will create it). The resulting model will be saved to the `ner-model/` directory.
