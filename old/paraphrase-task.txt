@@ -1,3 +1,0 @@
-The task is to examples of people ordering food at a McDonalds
-Examples should sometimes also include drink orders and side-dishes.
-It is preferable to come up with elaborate combinations of items.
