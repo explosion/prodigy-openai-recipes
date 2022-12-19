@@ -30,7 +30,7 @@ OPENAI_ORG = "org-..."
 OPENAI_KEY = "sk-..."
 ```
 
-## <kbd>ner.openai.correct</kbd>: NER annotation with zero- or few-shot learning
+## `ner.openai.correct`: NER annotation with zero- or few-shot learning
 
 This recipe marks entity predictions obtained from a large language model and allows you to flag them as correct, or to
 manually curate them. This allows you to quickly gather a gold-standard dataset through zero-shot or few-shot learning.
@@ -109,7 +109,7 @@ the prompt will be updated with a slight delay, after the next batch of prompts 
 You can experiment with making the batch size (`--batch-size` or `-b`) smaller to have the change come into effect sooner,
 but this might negatively impact the speed of the annotation workflow.
 
-## <kbd>ner.openai.fetch</kbd>: Fetch examples up-front
+## `ner.openai.fetch`: Fetch examples up-front
 
 The `ner.openai.correct` recipe fetches examples from OpenAI while annotating, but we've also included a recipe that can fetch a large batch of examples upfront.
 
