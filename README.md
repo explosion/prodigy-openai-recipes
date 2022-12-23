@@ -146,11 +146,11 @@ We've also included an experimental script to load in the `.spacy` binary format
 
 ```
 pip install -r requirements_train.txt
-python -m prodigy data-to-spacy ./data/annotations2 --ner my_ner_data -es 0
-python scripts/train_hf_ner.py ./data/annotations2/train.spacy ner-model
+python -m prodigy data-to-spacy ./data/annotations2 --ner my_ner_data
+python scripts/train_hf_ner.py ./data/annotations2/train.spacy ./data/annotations2/dev.spacy ner-model
 ```
 
-This will create the file `./data/annotations2/train.spacy` with your annotated documents (you'll also see a warning about not creating evaluation data, but that's OK, the training script will create it). The resulting model will be saved to the `ner-model/` directory.
+This will create the file `./data/annotations2/train.spacy` with your annotated documents. The resulting model will be saved to the `ner-model/` directory.
 
 ## What's next?
 
