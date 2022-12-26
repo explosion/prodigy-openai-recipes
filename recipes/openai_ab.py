@@ -10,12 +10,13 @@ At the end of annotation, the results are tallied up, so you can see whether
 one condition produces better results than the other. This lets you apply
 a sound methodology to subjective decisions.
 """
+from collections import Counter
 import os
 import random
 import sys
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar, cast
 
 import httpx
 import jinja2
@@ -35,37 +36,41 @@ load_dotenv()  # take environment variables from .env.
 
 class PromptInput(pydantic.BaseModel):
     id: str
-    input: str
     prompt_args: Dict[str, Any]
 
 
 class OpenAIPromptAB:
+    display: jinja2.Template
     prompts: Dict[str, jinja2.Template]
     inputs: Iterable[PromptInput]
     batch_size: int
     verbose: bool
+    randomize: bool
     openai_api_org: str
     openai_api_key: str
-    openai_temperature: int
+    openai_temperature: float
     openai_max_tokens: int
     openai_timeout_s: int
     openai_n: int
 
     def __init__(
         self,
+        display: jinja2.Template,
         prompts: Dict[str, jinja2.Template],
         inputs: Iterable[PromptInput],
         *,
-        batch_size: int = 10,
-        verbose: bool = False,
         openai_api_org: str,
         openai_api_key: str,
         openai_model: str,
-        openai_temperature: int = 0,
+        batch_size: int = 10,
+        verbose: bool = False,
+        randomize: bool = True,
+        openai_temperature: float = 0,
         openai_max_tokens: int = 500,
-        openai_timeout_s: int = 1,
+        openai_timeout_s: int = 50,
         openai_n: int = 1,
     ):
+        self.display = display
         self.inputs = inputs
         self.prompts = prompts
         self.model = openai_model
@@ -77,7 +82,7 @@ class OpenAIPromptAB:
         self.openai_max_tokens = openai_max_tokens
         self.openai_timeout_s = openai_timeout_s
         self.openai_n = openai_n
-        self.randomize = True
+        self.randomize = randomize
 
     def __iter__(self) -> Iterable[Dict]:
         for input_batch in _batch_sequence(self.inputs, self.batch_size):
@@ -85,32 +90,46 @@ class OpenAIPromptAB:
             for input_, responses in zip(input_batch, response_batch):
                 yield self._make_example(
                     input_.id,
-                    input_.input,
-                    responses[0],
-                    responses[1],
+                    self.display.render(**input_.prompt_args),
+                    responses,
                     randomize=self.randomize,
                 )
 
     def progress(self) -> float:
         return 0.0
 
-    def on_exit(self):
-        pass
+    def on_exit(self, ctrl):
+        examples = ctrl.db.get_dataset_examples(ctrl.dataset)
+        counts = Counter()
+        # Get last example per ID
+        for eg in examples:
+            selected = eg.get("accept", [])
+            if not selected or len(selected) != 1 or eg["answer"] != "accept":
+                continue
+            counts[selected[0]] += 1
+        print("")
+        if not counts:
+            msg.warn("No answers found", exits=0)
+        msg.divider("Evaluation results", icon="emoji")
+        pref, _ = counts.most_common(1)[0]
+        msg.good(f"You preferred {pref}")
+        rows = [(name, count) for name, count in counts.most_common()]
+        msg.table(rows, aligns=("l", "r"))
 
-    def _get_response_batch(self, inputs: List[PromptInput]) -> List[Tuple[str, str]]:
-        prompts = []
+    def _get_response_batch(self, inputs: List[PromptInput]) -> List[Dict[str, str]]:
         name1, name2 = self._choose_rivals()
+        prompts = []
         for input_ in inputs:
             prompts.append(self._get_prompt(name1, input_.prompt_args))
             prompts.append(self._get_prompt(name2, input_.prompt_args))
         responses = self._get_responses(prompts)
-        assert len(responses) == len(prompts) * 2
+        assert len(responses) == len(inputs) * 2
         output = []
         # Pair out the responses. There's a fancy
         # zip way to do this but I think that's less
         # readable
         for i in range(0, len(responses), 2):
-            output.append((responses[i * 2], responses[i * 2 + 1]))
+            output.append({name1: responses[i], name2: responses[i + 1]})
         return output
 
     def _choose_rivals(self) -> Tuple[str, str]:
@@ -136,6 +155,7 @@ class OpenAIPromptAB:
                     "temperature": self.openai_temperature,
                     "max_tokens": self.openai_max_tokens,
                 },
+                timeout=self.openai_timeout_s,
             ),
             n=self.openai_n,
             timeout_s=self.openai_timeout_s,
@@ -145,34 +165,46 @@ class OpenAIPromptAB:
         return [responses["choices"][i]["text"] for i in range(len(prompts))]
 
     def _make_example(
-        self, id: str, input: str, r1: str, r2: str, randomize: bool
+        self, id: str, input: str, responses: Dict[str, str], randomize: bool
     ) -> Dict:
 
         question = {
             "id": id,
-            "input": input,
-            "A": r1,
-            "B": r2,
-            "mapping": {},
+            "text": input,
             "options": [],
         }
-        if randomize and random.random() >= 0.5:
-            question["mapping"] = {"B": "accept", "A": "reject"}
-            question["options"].append({"id": "B", "text": r2})
-            question["options"].append({"id": "A", "text": r1})
+        response_pairs = list(responses.items())
+        if randomize:
+            random.shuffle(response_pairs)
         else:
-            question["mapping"] = {"A": "accept", "B": "reject"}
-            question["options"].append({"id": "A", "text": r1})
-            question["options"].append({"id": "B", "text": r2})
+            response_pairs = list(sorted(response_pairs))
+        for name, value in response_pairs:
+            question["options"].append({"id": name, "text": value})
         return question
 
 
 @prodigy.recipe(
     "ab.openai.prompts",
     dataset=("Dataset to save answers to", "positional", None, str),
-    arguments_path=("Path to jsonl template arguments", "positional", None, Path),
-    prompt1_path=("Path to first jinja2 prompt template", "positional", None, Path),
-    prompt2_path=("Path to second jinja2 prompt template", "positional", None, Path),
+    inputs_path=("Path to jsonl inputs", "positional", None, Path),
+    display_template_path=(
+        "Template for summarizing the arguments",
+        "positional",
+        None,
+        Path,
+    ),
+    prompt1_template_path=(
+        "The first jinja2 prompt template",
+        "positional",
+        None,
+        Path,
+    ),
+    prompt2_template_path=(
+        "Path to second jinja2 prompt template",
+        "positional",
+        None,
+        Path,
+    ),
     model=("GPT-3 model to use for responses", "option", "m", str),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
     verbose=("Print extra information to terminal", "flag", "v", bool),
@@ -185,26 +217,35 @@ class OpenAIPromptAB:
 )
 def ab_openai_prompts(
     dataset: str,
-    arguments_path: Path,
-    prompt1_path: Path,
-    prompt2_path: Path,
+    inputs_path: Path,
+    display_template_path: Path,
+    prompt1_template_path: Path,
+    prompt2_template_path: Path,
     model: str = "text-davinci-003",
     batch_size: int = 10,
     verbose: bool = False,
     no_random: bool = False,
 ):
     api_key, api_org = _get_api_credentials(model)
-    arguments = srsly.read_jsonl(arguments_path)
+    inputs = [PromptInput(**x) for x in cast(List[Dict], srsly.read_jsonl(inputs_path))]
 
-    prompt1 = _load_template(prompt1_path)
-    prompt2 = _load_template(prompt2_path)
+    display = _load_template(display_template_path)
+    prompt1 = _load_template(prompt1_template_path)
+    prompt2 = _load_template(prompt2_template_path)
     stream = OpenAIPromptAB(
-        prompts={prompt1_path.name: prompt1, prompt2_path.name: prompt2},
-        arguments=arguments,  # type: ignore
+        display=display,
+        prompts={
+            prompt1_template_path.name: prompt1,
+            prompt2_template_path.name: prompt2,
+        },
+        inputs=inputs,
         openai_api_org=api_org,
         openai_api_key=api_key,
         openai_model=model,
         batch_size=batch_size,
+        verbose=verbose,
+        randomize=not no_random,
+        openai_temperature=0.9,
     )
     return {
         "dataset": dataset,
@@ -217,6 +258,11 @@ def ab_openai_prompts(
             "show_flag": True,
         },
     }
+
+
+# These helpers are cut and paste from the NER recipe. I'm preferring to keep
+# the recipes independent for now, to make things more hackable for folks cloning
+# the repo.
 
 
 def _get_api_credentials(model: str) -> Tuple[str, str]:
@@ -284,7 +330,7 @@ def _load_template(path: Path) -> jinja2.Template:
     # that stuff worthwhile.
     if not path.suffix == ".jinja2":
         msg.fail(
-            "The --prompt-path (-p) parameter expects a .jinja2 file.",
+            "The parameter expects a .jinja2 file.",
             exits=1,
         )
     with path.open("r", encoding="utf8") as file_:
