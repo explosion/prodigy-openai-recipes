@@ -58,8 +58,6 @@ jobs:
       python -m pip install -U build pip setuptools
       pip install -U -r requirements.txt
     displayName: 'Install dependencies'
-    env:
-      PRODIGY_KEY: $(PRODIGY_KEY)
 
   - script: python -m pytest
     displayName: 'Run tests'

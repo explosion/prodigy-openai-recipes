@@ -1,0 +1,37 @@
+name: Unit Tests
+
+on: pull_request
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+          cache: "pip" # caching pip dependencies
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements_train.txt
+
+      - name: Check out Prodigy
+        uses: actions/checkout@v3
+        with:
+          repository: explosion/prodigy
+          ref: v1.11.8
+          path: ./prodigy
+          ssh-key: ${{ secrets.GHA_PRODIGY_READ }}
+
+      - name: Install prodigy
+        run: |
+          ls -la
+          pip install ./prodigy
+
+      - name: Test with pytest
+        run: |
+          python -m pytest
