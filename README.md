@@ -135,22 +135,29 @@ python -m prodigy db-out my_ner_data  > ner_data.jsonl
 The format of the exported annotations contains all the data you need to train a smaller model downstream. Each example
 in the dataset contains the original text, the tokens, span annotations denoting the entities, etc.
 
-You can also export the data to spaCy's [binary format](https://spacy.io/api/data-formats#training), using [`data-to-spacy`](https://prodi.gy/docs/recipes#data-to-spacy). This format lets you load in the annotations as spaCy `Doc` objects, which can be convenient for further conversion. The `data-to-spacy` command also makes it easy to train an NER model with spaCy, as follows:
+You can also export the data to spaCy's [binary format](https://spacy.io/api/data-formats#training), using [`data-to-spacy`](https://prodi.gy/docs/recipes#data-to-spacy). This format lets you load in the annotations as spaCy `Doc` objects, which can be convenient for further conversion. The `data-to-spacy` command also makes it easy to train an NER model with spaCy. First you export the data, specifying the train data as 20% of the total:
 
 ```bash
 python -m prodigy data-to-spacy ./data/annotations/ --ner my_ner_data -es 0.2
-python -m spacy train ./data/annotations/config.cfg --paths.train ./data/annotations/train.spacy --paths.dev ./data/annotations/dev.spacy
 ```
 
-We've also included an experimental script to load in the `.spacy` binary format and train a model with the HuggingFace `transformers` library. You can export the annotations and run the script like this:
+Then you can train a model with spaCy:
 
+```bash
+python -m spacy train ./data/annotations/config.cfg --paths.train ./data/annotations/train.spacy --paths.dev ./data/annotations/dev.spacy -o ner-model
 ```
+
+This will save a model to the `ner-model/` directory.
+
+We've also included an experimental script to load in the `.spacy` binary format and train a model with the HuggingFace `transformers` library. You can use the same data you just exported and run the script like this:
+
+```bash
+# First you need to install the HuggingFace library and requirements
 pip install -r requirements_train.txt
-python -m prodigy data-to-spacy ./data/annotations2 --ner my_ner_data
-python scripts/train_hf_ner.py ./data/annotations2/train.spacy ./data/annotations2/dev.spacy ner-model
+python scripts/train_hf_ner.py ./data/annotations/train.spacy ./data/annotations/dev.spacy hf-ner-model
 ```
 
-This will create the file `./data/annotations2/train.spacy` with your annotated documents. The resulting model will be saved to the `ner-model/` directory.
+The resulting model will be saved to the `hf-ner-model/` directory.
 
 ## What's next?
 
