@@ -9,9 +9,9 @@ jobs:
 - job: 'Test'
   strategy:
     matrix:
-      Python37Windows:
-        imageName: 'windows-latest'
-        python.version: '3.7'
+#      Python37Windows:
+#        imageName: 'windows-latest'
+#        python.version: '3.7'
       Python38Linux:
         imageName: 'ubuntu-latest'
         python.version: '3.8'
