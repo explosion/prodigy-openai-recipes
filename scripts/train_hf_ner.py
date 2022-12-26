@@ -39,17 +39,17 @@ def split_data(docs: List[BatchEncoding], split: float = 0.8):
     return train, test
 
 
-def spacy2hf(fname: Union[str, Path], tokenizer: AutoTokenizer) -> List[BatchEncoding]:
-    """Given a path to a .spacy file and an HF tokenizer, return HF tokens with
-    NER labels.
+def spacy2hf(fname: Union[str, Path], label2id: dict, tokenizer: AutoTokenizer) -> List[BatchEncoding]:
+    """Given a path to a .spacy file, a label mapping, and an HF tokenizer,
+    return HF tokens with NER labels.
     """
+
     infile = fname
     nlp = spacy.blank("en")
     db = DocBin().from_disk(infile)
 
     hfdocs = []
     # first, make ids for all labels
-    label2id = {"O": 0}
     for doc in db.get_docs(nlp.vocab):
         labels = []
         toks = []
@@ -80,7 +80,7 @@ def spacy2hf(fname: Union[str, Path], tokenizer: AutoTokenizer) -> List[BatchEnc
 
         hfdocs.append(tokens_hf)
 
-    return hfdocs, label2id
+    return hfdocs
 
 
 def build_compute_metrics(label_list):
@@ -147,14 +147,15 @@ def train_ner(base_model, tokenizer, label_list, train_data, test_data):
     return trainer
 
 
-def train_hf_ner(infile: str, outdir: str, base: str = "distilbert-base-uncased"):
+def train_hf_ner(train_file: str, dev_file: str, outdir: str, base: str = "distilbert-base-uncased"):
     """Fine-tune a HuggingFace NER model using a .spacy file as input."""
     # prep the data
     tokenizer = AutoTokenizer.from_pretrained(base)
-    dataset, label2id = spacy2hf(infile, tokenizer)
+    label2id = {"O": 0}
+    train = spacy2hf(train_file, label2id, tokenizer)
+    test = spacy2hf(dev_file, label2id, tokenizer)
     # handle the mapping
     id2label = {v: k for k, v in label2id.items()}
-    train, test = split_data(dataset)
     # actually train
     trainer = train_ner(base, tokenizer, id2label, train, test)
     trainer.save_model(outdir)
