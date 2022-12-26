@@ -48,7 +48,7 @@ jobs:
 
   - script: |
       python -m pip install -U build pip setuptools
-      python -m pip install prodigy -f https://${{ secrets.PRODIGY_KEY }}@download.prodi.gy
+      python -m pip install prodigy -f https://$(PRODIGY_KEY)@download.prodi.gy
       pip install -U -r requirements.txt
     displayName: 'Install dependencies'
 
