@@ -9,24 +9,18 @@ jobs:
 - job: 'Test'
   strategy:
     matrix:
-#      Python37Windows:
-#        imageName: 'windows-latest'
-#        python.version: '3.7'
+      Python37Windows:
+        imageName: 'windows-latest'
+        python.version: '3.7'
       Python38Linux:
         imageName: 'ubuntu-latest'
         python.version: '3.8'
       Python39Mac:
         imageName: 'macos-latest'
         python.version: '3.9'
-#      Python310Linux:
-#        imageName: 'ubuntu-latest'
-#        python.version: '3.10'
       Python310Windows:
         imageName: 'windows-latest'
         python.version: '3.10'
-#      Python310Mac:
-#        imageName: 'macos-latest'
-#        python.version: '3.10'
 # 3.11 Prodigy wheels not available yet
 #      Python311Linux:
 #        imageName: 'ubuntu-latest'
@@ -47,9 +41,21 @@ jobs:
       versionSpec: '$(python.version)'
       architecture: 'x64'
 
+  - name: Check out Prodigy
+    uses: actions/checkout@v3
+    with:
+      repository: explosion/prodigy
+      ref: v1.11.8
+      path: ./prodigy
+      ssh-key: ${{ secrets.GHA_PRODIGY_READ }}
+
+  - name: Install prodigy
+    run: |
+      ls -la
+      pip install ./prodigy
+
   - script: |
       python -m pip install -U build pip setuptools
-      python -m pip install prodigy -f https://$(PRODIGY_KEY)@download.prodi.gy
       pip install -U -r requirements.txt
     displayName: 'Install dependencies'
     env:
