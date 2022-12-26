@@ -12,21 +12,23 @@ a sound methodology to subjective decisions.
 """
 import os
 import random
-import pydantic
+import sys
+import time
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
+
+import httpx
+import jinja2
 import prodigy
 import prodigy.components.db
 import prodigy.components.preprocess
 import prodigy.util
-from pathlib import Path
-import httpx
-import jinja2
-from dotenv import load_dotenv
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, TypeVar, Any
-from prodigy.util import msg
+import pydantic
 import srsly
-import sys
-import time
+from dotenv import load_dotenv
+from prodigy.util import msg
 
+_ItemT = TypeVar("_ItemT")
 # Set up openai
 load_dotenv()  # take environment variables from .env.
 
