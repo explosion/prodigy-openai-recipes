@@ -57,10 +57,5 @@ jobs:
       pip install -U -r requirements.txt
     displayName: 'Install dependencies'
 
-  - task: DeleteFiles@1
-    inputs:
-      contents: 'openai-prodigy-recipes'
-    displayName: 'Delete source directory'
-
   - script: python -m pytest
     displayName: 'Run tests'
