@@ -53,7 +53,7 @@ jobs:
       architecture: 'x64'
 
   - script: |
-      python -m pip install --upgrade pip
+      python -m pip install -U build pip setuptools
       pip install -U -r requirements.txt
     displayName: 'Install dependencies'
 
