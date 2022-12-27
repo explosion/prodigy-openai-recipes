@@ -15,26 +15,6 @@ from transformers.tokenization_utils_base import BatchEncoding
 seqeval = evaluate.load("seqeval")
 
 
-def split_data(docs: List[BatchEncoding], split: float = 0.8):
-    """Given list of HF docs, split for train/test."""
-
-    # This could be done to the spaCy docs instead, but it's easier to do it to
-    # the HF docs because of the need to create a label/id mapping.
-    random.shuffle(docs)
-
-    train = []
-    test = []
-
-    thresh = int(len(docs) * split)
-
-    for ii, doc in enumerate(docs):
-        if ii < thresh:
-            train.append(doc)
-        else:
-            test.append(doc)
-    return train, test
-
-
 def spacy2hf(
     nlp_config: Path, fname: Union[str, Path], label2id: dict, tokenizer: AutoTokenizer
 ) -> List[BatchEncoding]:
