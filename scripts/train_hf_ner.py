@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Union
+from typing import List, Optional, Union
 
 import evaluate
 import numpy as np
@@ -10,6 +10,8 @@ from transformers import (AutoModelForTokenClassification, AutoTokenizer,
                           DataCollatorForTokenClassification, Trainer,
                           TrainingArguments)
 from transformers.tokenization_utils_base import BatchEncoding
+
+app = typer.Typer()
 
 # This can't be imported like a normal library
 seqeval = evaluate.load("seqeval")
@@ -126,8 +128,16 @@ def train_ner(base_model, tokenizer, label_list, train_data, test_data):
     return trainer
 
 
+@app.command(
+    "train_hf_ner", context_settings={"allow_extra_args": False}
+)
 def train_hf_ner(
-    config_file: Path, train_file: Path, dev_file: Path, outdir: Path, base: str = "distilbert-base-uncased"
+    # fmt: off
+    config_file: Path = typer.Argument(..., help="Path to nlp config file", exists=True, allow_dash=False),
+    train_file: Path = typer.Argument(..., help="Binary .spacy file containing training data", exists=True, allow_dash=False),
+    dev_file: Path = typer.Argument(..., help="Binary .spacy file containing dev evaluation data", exists=True, allow_dash=False),
+    output_path: Optional[Path] = typer.Option(None, "--output", "-o", help="Output directory to store trained pipeline in"),
+    base: str = typer.Option("distilbert-base-uncased", "--base", "-b", help="Base transformer model to start from")
 ):
     """Fine-tune a HuggingFace NER model using a .spacy file as input."""
     # prep the data
@@ -139,13 +149,8 @@ def train_hf_ner(
     id2label = {v: k for k, v in label2id.items()}
     # actually train
     trainer = train_ner(base, tokenizer, id2label, train, test)
-    trainer.save_model(outdir)
+    trainer.save_model(output_path)
 
 
 if __name__ == "__main__":
-    app = typer.Typer(
-        name="Train a HuggingFace NER model from spaCy formatted data",
-        no_args_is_help=True,
-    )
-    app.command("train_hf_ner")(train_hf_ner)
     app()
