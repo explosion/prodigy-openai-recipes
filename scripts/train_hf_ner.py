@@ -1,14 +1,18 @@
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Dict, List, Optional
 
 import evaluate
 import numpy as np
 import spacy.util
 import typer
 from spacy.tokens import DocBin
-from transformers import (AutoModelForTokenClassification, AutoTokenizer,
-                          DataCollatorForTokenClassification, Trainer,
-                          TrainingArguments)
+from transformers import (
+    AutoModelForTokenClassification,
+    AutoTokenizer,
+    DataCollatorForTokenClassification,
+    Trainer,
+    TrainingArguments,
+)
 from transformers.tokenization_utils_base import BatchEncoding
 
 app = typer.Typer()
@@ -18,16 +22,18 @@ seqeval = evaluate.load("seqeval")
 
 
 def spacy2hf(
-    nlp_config: Path, fname: Union[str, Path], label2id: dict, tokenizer: AutoTokenizer
+    nlp_config: Path,
+    binary_file: Path,
+    label2id: Dict[str, int],
+    tokenizer: AutoTokenizer,
 ) -> List[BatchEncoding]:
     """Given a path to a .spacy file, a label mapping, and an HF tokenizer,
     return HF tokens with NER labels.
     """
 
-    infile = fname
     config = spacy.util.load_config(nlp_config)
     nlp = spacy.util.load_model_from_config(config)
-    db = DocBin().from_disk(infile)
+    db = DocBin().from_disk(binary_file)
 
     hfdocs = []
     # first, make ids for all labels
@@ -64,35 +70,45 @@ def spacy2hf(
     return hfdocs
 
 
-def build_compute_metrics(label_list):
+def build_compute_metrics(label_list: Dict[int, str]):
     def compute_metrics(p):
-        predictions, labels = p
-        predictions = np.argmax(predictions, axis=2)
+        prediction_matrix, label_matrix = p
+        prediction_matrix = np.argmax(prediction_matrix, axis=2)
 
-        true_predictions = [
-            [label_list[p] for (p, l) in zip(prediction, label) if l != -100]
-            for prediction, label in zip(predictions, labels)
+        all_predictions = [
+            [label_list[pred] for (pred, label) in zip(predictions, labels) if label != -100]
+            for predictions, labels in zip(prediction_matrix, label_matrix)
         ]
-        true_labels = [
-            [label_list[l] for (p, l) in zip(prediction, label) if l != -100]
-            for prediction, label in zip(predictions, labels)
+        gold_labels = [
+            [label_list[label] for (pred, label) in zip(predictions, labels) if label != -100]
+            for predictions, labels in zip(prediction_matrix, label_matrix)
         ]
 
-        results = seqeval.compute(predictions=true_predictions, references=true_labels)
+        results = seqeval.compute(predictions=all_predictions, references=gold_labels)
         return {
-            "precision": results["overall_precision"],
-            "recall": results["overall_recall"],
-            "f1": results["overall_f1"],
-            "accuracy": results["overall_accuracy"],
+            "precision": _round_float(results["overall_precision"]),
+            "recall": _round_float(results["overall_recall"]),
+            "f1": _round_float(results["overall_f1"]),
+            "accuracy": _round_float(results["overall_accuracy"]),
         }
 
     return compute_metrics
 
 
-def train_ner(base_model, tokenizer, label_list, train_data, test_data):
+def _round_float(number: float) -> float:
+    return round(number, 3)
+
+
+def train_ner(
+    base_model: str,
+    tokenizer: AutoTokenizer,
+    id2label: Dict[int, str],
+    train_data: List[BatchEncoding],
+    test_data: List[BatchEncoding],
+) -> Trainer:
     """Fine-tune an existing HF model."""
     model = AutoModelForTokenClassification.from_pretrained(
-        base_model, num_labels=len(label_list)
+        base_model, num_labels=len(id2label)
     )
 
     batch_size = 16
@@ -111,7 +127,7 @@ def train_ner(base_model, tokenizer, label_list, train_data, test_data):
     )
 
     data_collator = DataCollatorForTokenClassification(tokenizer)
-    compute_metrics = build_compute_metrics(label_list)
+    compute_metrics = build_compute_metrics(id2label)
 
     trainer = Trainer(
         model,
@@ -128,29 +144,28 @@ def train_ner(base_model, tokenizer, label_list, train_data, test_data):
     return trainer
 
 
-@app.command(
-    "train_hf_ner", context_settings={"allow_extra_args": False}
-)
+@app.command("train_hf_ner", context_settings={"allow_extra_args": False})
 def train_hf_ner(
     # fmt: off
     config_file: Path = typer.Argument(..., help="Path to nlp config file", exists=True, allow_dash=False),
     train_file: Path = typer.Argument(..., help="Binary .spacy file containing training data", exists=True, allow_dash=False),
     dev_file: Path = typer.Argument(..., help="Binary .spacy file containing dev evaluation data", exists=True, allow_dash=False),
     output_path: Optional[Path] = typer.Option(None, "--output", "-o", help="Output directory to store trained pipeline in"),
-    base: str = typer.Option("distilbert-base-uncased", "--base", "-b", help="Base transformer model to start from")
+    base_model: str = typer.Option("distilbert-base-uncased", "--base", "-b", help="Base transformer model to start from"),
+    # fmt: on
 ):
     """Fine-tune a HuggingFace NER model using a .spacy file as input."""
     # prep the data
-    tokenizer = AutoTokenizer.from_pretrained(base)
+    tokenizer = AutoTokenizer.from_pretrained(base_model)
     label2id = {"O": 0}
     train = spacy2hf(config_file, train_file, label2id, tokenizer)
     test = spacy2hf(config_file, dev_file, label2id, tokenizer)
     # handle the mapping
     id2label = {v: k for k, v in label2id.items()}
     # actually train
-    trainer = train_ner(base, tokenizer, id2label, train, test)
+    trainer = train_ner(base_model, tokenizer, id2label, train, test)
     if output_path:
-        trainer.save_model(output_path)
+        trainer.save_model(str(output_path))
 
 
 if __name__ == "__main__":
