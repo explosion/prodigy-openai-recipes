@@ -1,19 +1,16 @@
-from pathlib import Path
 import random
-from typing import List, Union, Tuple
+from pathlib import Path
+from typing import List, Union
 
-import spacy
-from spacy.tokens import DocBin, Doc
-from thinc.api import fix_random_seed
-
-from transformers import AutoTokenizer
-from transformers.tokenization_utils_base import BatchEncoding
-from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
-from transformers import DataCollatorForTokenClassification
 import evaluate
 import numpy as np
-
+import spacy
 import typer
+from spacy.tokens import DocBin
+from transformers import (AutoModelForTokenClassification, AutoTokenizer,
+                          DataCollatorForTokenClassification, Trainer,
+                          TrainingArguments)
+from transformers.tokenization_utils_base import BatchEncoding
 
 # This can't be imported like a normal library
 seqeval = evaluate.load("seqeval")
