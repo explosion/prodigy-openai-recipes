@@ -39,7 +39,9 @@ def split_data(docs: List[BatchEncoding], split: float = 0.8):
     return train, test
 
 
-def spacy2hf(fname: Union[str, Path], label2id: dict, tokenizer: AutoTokenizer) -> List[BatchEncoding]:
+def spacy2hf(
+    fname: Union[str, Path], label2id: dict, tokenizer: AutoTokenizer
+) -> List[BatchEncoding]:
     """Given a path to a .spacy file, a label mapping, and an HF tokenizer,
     return HF tokens with NER labels.
     """
@@ -147,7 +149,9 @@ def train_ner(base_model, tokenizer, label_list, train_data, test_data):
     return trainer
 
 
-def train_hf_ner(train_file: str, dev_file: str, outdir: str, base: str = "distilbert-base-uncased"):
+def train_hf_ner(
+    train_file: str, dev_file: str, outdir: str, base: str = "distilbert-base-uncased"
+):
     """Fine-tune a HuggingFace NER model using a .spacy file as input."""
     # prep the data
     tokenizer = AutoTokenizer.from_pretrained(base)
@@ -162,6 +166,9 @@ def train_hf_ner(train_file: str, dev_file: str, outdir: str, base: str = "disti
 
 
 if __name__ == "__main__":
-    app = typer.Typer(name="Train a HuggingFace NER model from spaCy formatted data", no_args_is_help=True)
+    app = typer.Typer(
+        name="Train a HuggingFace NER model from spaCy formatted data",
+        no_args_is_help=True,
+    )
     app.command("train_hf_ner")(train_hf_ner)
     app()
