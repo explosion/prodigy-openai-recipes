@@ -149,7 +149,8 @@ def train_hf_ner(
     id2label = {v: k for k, v in label2id.items()}
     # actually train
     trainer = train_ner(base, tokenizer, id2label, train, test)
-    trainer.save_model(output_path)
+    if output_path:
+        trainer.save_model(output_path)
 
 
 if __name__ == "__main__":
