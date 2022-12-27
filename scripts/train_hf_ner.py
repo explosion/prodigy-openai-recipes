@@ -1,10 +1,9 @@
-import random
 from pathlib import Path
 from typing import List, Union
 
 import evaluate
 import numpy as np
-import spacy
+import spacy.util
 import typer
 from spacy.tokens import DocBin
 from transformers import (AutoModelForTokenClassification, AutoTokenizer,
@@ -37,14 +36,15 @@ def split_data(docs: List[BatchEncoding], split: float = 0.8):
 
 
 def spacy2hf(
-    fname: Union[str, Path], label2id: dict, tokenizer: AutoTokenizer
+    nlp_config: Path, fname: Union[str, Path], label2id: dict, tokenizer: AutoTokenizer
 ) -> List[BatchEncoding]:
     """Given a path to a .spacy file, a label mapping, and an HF tokenizer,
     return HF tokens with NER labels.
     """
 
     infile = fname
-    nlp = spacy.blank("en")
+    config = spacy.util.load_config(nlp_config)
+    nlp = spacy.util.load_model_from_config(config)
     db = DocBin().from_disk(infile)
 
     hfdocs = []
@@ -147,14 +147,14 @@ def train_ner(base_model, tokenizer, label_list, train_data, test_data):
 
 
 def train_hf_ner(
-    train_file: str, dev_file: str, outdir: str, base: str = "distilbert-base-uncased"
+    config_file: Path, train_file: Path, dev_file: Path, outdir: Path, base: str = "distilbert-base-uncased"
 ):
     """Fine-tune a HuggingFace NER model using a .spacy file as input."""
     # prep the data
     tokenizer = AutoTokenizer.from_pretrained(base)
     label2id = {"O": 0}
-    train = spacy2hf(train_file, label2id, tokenizer)
-    test = spacy2hf(dev_file, label2id, tokenizer)
+    train = spacy2hf(config_file, train_file, label2id, tokenizer)
+    test = spacy2hf(config_file, dev_file, label2id, tokenizer)
     # handle the mapping
     id2label = {v: k for k, v in label2id.items()}
     # actually train
