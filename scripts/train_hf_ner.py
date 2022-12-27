@@ -84,7 +84,7 @@ def build_compute_metrics(label_list: Dict[int, str]):
             for predictions, labels in zip(prediction_matrix, label_matrix)
         ]
 
-        results = seqeval.compute(predictions=all_predictions, references=gold_labels)
+        results = seqeval.compute(predictions=all_predictions, references=gold_labels, zero_division=0)
         return {
             "precision": _round_float(results["overall_precision"]),
             "recall": _round_float(results["overall_recall"]),
