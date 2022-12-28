@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 import evaluate
 import numpy as np
-import spacy.util
+import spacy.vocab
 import typer
 from spacy.tokens import DocBin
 from transformers import (
@@ -31,13 +31,14 @@ def spacy2hf(
     return HF tokens with NER labels.
     """
 
-    config = spacy.util.load_config(nlp_config)
-    nlp = spacy.util.load_model_from_config(config)
     db = DocBin().from_disk(binary_file)
 
     hfdocs = []
+    # Normally you would use the vocab from an nlp object, but we just need
+    # this for deserialization before conversion.
+    vocab = spacy.vocab.Vocab()
     # first, make ids for all labels
-    for doc in db.get_docs(nlp.vocab):
+    for doc in db.get_docs(vocab):
         labels = []
         toks = []
         for tok in doc:
