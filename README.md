@@ -154,7 +154,7 @@ We've also included an experimental script to load in the `.spacy` binary format
 ```bash
 # First you need to install the HuggingFace library and requirements
 pip install -r requirements_train.txt
-python scripts/train_hf_ner.py ./data/annotations/train.spacy ./data/annotations/dev.spacy -o hf-ner-model
+python ./scripts/train_hf_ner.py ./data/annotations/train.spacy ./data/annotations/dev.spacy -o hf-ner-model
 ```
 
 The resulting model will be saved to the `hf-ner-model/` directory.
