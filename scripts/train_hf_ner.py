@@ -22,7 +22,6 @@ seqeval = evaluate.load("seqeval")
 
 
 def spacy2hf(
-    nlp_config: Path,
     binary_file: Path,
     label2id: Dict[str, int],
     tokenizer: AutoTokenizer,
@@ -148,7 +147,6 @@ def train_ner(
 @app.command("train_hf_ner", context_settings={"allow_extra_args": False})
 def train_hf_ner(
     # fmt: off
-    config_file: Path = typer.Argument(..., help="Path to nlp config file", exists=True, allow_dash=False),
     train_file: Path = typer.Argument(..., help="Binary .spacy file containing training data", exists=True, allow_dash=False),
     dev_file: Path = typer.Argument(..., help="Binary .spacy file containing dev evaluation data", exists=True, allow_dash=False),
     output_path: Optional[Path] = typer.Option(None, "--output", "-o", help="Output directory to store trained pipeline in"),
@@ -159,8 +157,8 @@ def train_hf_ner(
     # prep the data
     tokenizer = AutoTokenizer.from_pretrained(base_model)
     label2id = {"O": 0}
-    train = spacy2hf(config_file, train_file, label2id, tokenizer)
-    test = spacy2hf(config_file, dev_file, label2id, tokenizer)
+    train = spacy2hf(train_file, label2id, tokenizer)
+    test = spacy2hf(dev_file, label2id, tokenizer)
     # handle the mapping
     id2label = {v: k for k, v in label2id.items()}
     # actually train
