@@ -239,7 +239,6 @@ class OpenAISuggester:
                     "temperature": self.openai_temperature,
                     "max_tokens": self.openai_max_tokens,
                 },
-                timeout=20,
             ),
             n=self.openai_n,
             timeout_s=self.openai_timeout_s,
