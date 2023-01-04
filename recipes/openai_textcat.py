@@ -11,6 +11,8 @@ import jinja2
 import prodigy
 import prodigy.components.db
 import prodigy.components.preprocess
+import prodigy.components.sorters
+import prodigy.models.textcat
 import prodigy.types
 import prodigy.util
 import rich
@@ -21,7 +23,7 @@ from dotenv import load_dotenv
 from prodigy.util import msg, log
 from rich.panel import Panel
 from spacy.language import Language
-from prodigy.components.sorters import Probability
+
 
 _ItemT = TypeVar("_ItemT")
 
@@ -272,9 +274,9 @@ class OpenAISuggester:
 def textcat_openai_teach(
     dataset: str,
     input_path: Path,
-    labels: List[str],
+    spacy_model: str,
+    label: List[str],
     chatgpt_bias: float = 0.5,
-    lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
     segment: bool = False,
@@ -295,14 +297,22 @@ def textcat_openai_teach(
     can help if you want to use multiple annotators of if you want to make sure
     you don't have to wait on the OpenAI queries.
     """
+
     api_key, api_org = _get_api_credentials(model)
     examples = _read_prompt_examples(examples_path)
-    nlp = spacy.blank(lang)
+    if label is None:
+        msg.fail("textcat.teach requires at least one --label", exits=1)
+    nlp = spacy.load(spacy_model)
+    name = prodigy.models.textcat.add_text_classifier(nlp, label)
+    model = prodigy.models.textcat.TextClassifier(nlp=nlp, labels=label, pipe_name=name)
+    log(f"RECIPE: Creating TextClassifier with model {spacy_model}")
+
     if segment:
         nlp.add_pipe("sentencizer")
+
     openai = OpenAISuggester(
         openai_model=model,
-        labels=labels,
+        labels=label,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
         verbose=verbose,
@@ -310,11 +320,16 @@ def textcat_openai_teach(
         openai_api_key=api_key,
         openai_api_org=api_org,
     )
+
     for eg in examples:
         openai.add_example(eg)
+
     stream = list(srsly.read_jsonl(input_path))
     stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
-    stream = _prefer_gpt(stream, chatgpt_bias)
+
+    # Setup update loop
+    predict = model
+    stream = _prefer_gpt(predict(stream), chatgpt_bias)
 
     return {
         "dataset": dataset,
@@ -338,9 +353,12 @@ def textcat_openai_teach(
 def _prefer_gpt(stream, bias: float) -> Iterable[Dict]:
     log(f"SORTER: Resort stream to prefer positive classes (bias: {bias})")
     sorted_stream = (
-        (bias, eg) if eg.get("chatgpt_answer") else (1 - bias, eg) for eg in stream
+        (prodigy.components.sorters.get_uncertainty(score, bias), eg)
+        if eg.get("chatgpt_answer")
+        else (prodigy.components.sorters.get_uncertainty(score, 1 - bias), eg)
+        for score, eg in stream
     )
-    return Probability(sorted_stream)
+    return prodigy.components.sorters.Probability(sorted_stream)
 
 
 def _get_api_credentials(model: str = None) -> Tuple[str, str]:
