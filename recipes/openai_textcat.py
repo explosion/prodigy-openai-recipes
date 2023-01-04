@@ -29,6 +29,8 @@ _ItemT = TypeVar("_ItemT")
 DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "textcat_prompt.jinja2"
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
 
+TEXTCAT_LABEL = "Recipe"
+
 # Set up openai access by taking environment variables from .env.
 load_dotenv()
 
@@ -54,7 +56,7 @@ class PromptExample:
     """An example to be passed into an OpenAI TextCat prompt."""
 
     text: str
-    entities: Dict[str, List[str]]
+    label: str = TEXTCAT_LABEL
 
     @staticmethod
     def is_flagged(example: Dict) -> bool:
@@ -67,7 +69,6 @@ class PromptExample:
             and "text" in example
         )
 
-    # TODO
     @classmethod
     def from_prodigy(cls, example: Dict, labels: Iterable[str]) -> "PromptExample":
         """Create a prompt example from Prodigy's format.
@@ -76,15 +77,10 @@ class PromptExample:
         """
         if "text" not in example:
             raise ValueError("Cannot make PromptExample without text")
-        entities_by_label = defaultdict(list)
-        full_text = example["text"]
-        for span in example.get("spans", []):
-            label = _normalize_label(span["label"])
-            if label in labels:
-                mention = full_text[int(span["start"]) : int(span["end"])]
-                entities_by_label[label].append(mention)
 
-        return cls(text=full_text, entities=entities_by_label)
+        full_text = example["text"]
+        label = example["label"]
+        return cls(text=full_text, label=_normalize_label(label))
 
 
 def _normalize_label(label: str) -> str:
@@ -169,7 +165,7 @@ class OpenAISuggester:
         """
         for batch in _batch_sequence(stream, batch_size):
             prompts = [
-                self._get_ner_prompt(
+                self._get_textcat_prompt(
                     eg["text"], labels=self.labels, examples=self.examples
                 )
                 for eg in batch
@@ -197,45 +193,20 @@ class OpenAISuggester:
             # can automatically snap to token boundaries, making the process much more efficient.
             doc = nlp.make_doc(example["text"])
             response = self._parse_response(example["openai"]["response"])
-            spacy_spans = []
-            for label, phrases in response:
-                label = _normalize_label(label)
-                if label in self.labels:
-                    offsets = _find_substrings(doc.text, phrases)
-                    for start, end in offsets:
-                        span = doc.char_span(
-                            start, end, alignment_mode="contract", label=label
-                        )
-                        if span is not None:
-                            spacy_spans.append(span)
-            # This step prevents the same token from being used in multiple spans.
-            # If there's a conflict, the longer span is preserved.
-            spacy_spans = filter_spans(spacy_spans)
-            spans = [
-                {
-                    "label": span.label_,
-                    "start": span.start_char,
-                    "end": span.end_char,
-                    "token_start": span.start,
-                    "token_end": span.end - 1,
-                }
-                for span in spacy_spans
-            ]
-            example = prodigy.util.set_hashes({**example, "spans": spans})
-            yield example
+            doc.cats[example["label"]] = example["answer"] == "accept"
+            yield prodigy.util.set_hashes(example)
 
-    # TODO
     def _get_textcat_prompt(
         self, text: str, labels: List[str], examples: List[PromptExample]
     ) -> str:
-        """Generate a prompt for named entity annotation.
+        """Generate a prompt for text categorization.
 
         The prompt can use examples to further clarify the task. Note that using too
         many examples will make the prompt too large, slowing things down.
         """
+        # TODO: Update this once you have "finalized" your prompt
         return self.prompt_template.render(text=text, labels=labels, examples=examples)
 
-    # TODO
     def _get_textcat_response(self, prompts: List[str]) -> List[str]:
         headers = {
             "Authorization": f"Bearer {self.openai_api_key}",
@@ -260,8 +231,9 @@ class OpenAISuggester:
         responses = r.json()
         return [responses["choices"][i]["text"] for i in range(len(prompts))]
 
+    # TODO: Check sample OpenAI response first. This might be similar?
     def _parse_response(self, text: str) -> List[Tuple[str, List[str]]]:
-        """Interpret OpenAI's NER response. It's supposed to be
+        """Interpret OpenAI's TextCat response. It's supposed to be
         a list of lines, with each line having the form:
         Label: phrase1, phrase2, ...
 
@@ -343,7 +315,7 @@ def textcat_openai_correct(
             "batch_size": batch_size,
             "exclude_by": "input",
             "blocks": [
-                {"view_id": "ner_manual"},
+                {"view_id": "classification"}, 
                 {"view_id": "html", "html_template": HTML_TEMPLATE},
             ],
             "show_flag": True,
@@ -379,13 +351,13 @@ def textcat_openai_fetch(
     max_examples: int = 2,
     verbose: bool = False,
 ):
-    """Get bulk NER suggestions from an OpenAI API, using zero-shot or few-shot learning.
-    The results can then be corrected using the `ner.manual` recipe.
+    """Get bulk TextCat suggestions from an OpenAI API, using zero-shot or few-shot learning.
+    The results can then be corrected using the `textcat.manual` recipe.
 
     This approach lets you get the openai queries out of the way upfront, which can help
     if you want to use multiple annotators of if you want to make sure you don't have to
     wait on the OpenAI queries. The downside is that you can't flag examples to be integrated
-    into the prompt during the annotation, unlike the ner.openai.correct recipe.
+    into the prompt during the annotation, unlike the textcat.openai.correct recipe.
     """
     api_key, api_org = _get_api_credentials(model)
     examples = _read_prompt_examples(examples_path)
@@ -534,50 +506,3 @@ def _batch_sequence(items: Iterable[_ItemT], batch_size: int) -> Iterable[List[_
             batch = []
     if batch:
         yield batch
-
-
-def _find_substrings(
-    text: str,
-    substrings: List[str],
-    *,
-    case_sensitive: bool = False,
-    single_match: bool = False,
-) -> List[Tuple[int, int]]:
-    """Given a list of substrings, find their character start and end positions in a text. The substrings are assumed to be sorted by the order of their occurrence in the text.
-
-    text: The text to search over.
-    substrings: The strings to find.
-    case_sensitive: Whether to search without case sensitivity.
-    single_match: If False, allow one substring to match multiple times in the text. If True, returns the first hit.
-    """
-    # remove empty and duplicate strings, and lowercase everything if need be
-    substrings = [s for s in substrings if s and len(s) > 0]
-    if not case_sensitive:
-        text = text.lower()
-        substrings = [s.lower() for s in substrings]
-    substrings = _unique(substrings)
-    offsets = []
-    for substring in substrings:
-        search_from = 0
-        # Search until one hit is found. Continue only if single_match is False.
-        while True:
-            start = text.find(substring, search_from)
-            if start == -1:
-                break
-            end = start + len(substring)
-            offsets.append((start, end))
-            if single_match:
-                break
-            search_from = end
-    return offsets
-
-
-def _unique(items: List[str]) -> List[str]:
-    """Remove duplicates without changing order"""
-    seen = set()
-    output = []
-    for item in items:
-        if item not in seen:
-            output.append(item)
-            seen.add(item)
-    return output
