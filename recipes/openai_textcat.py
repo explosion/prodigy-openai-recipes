@@ -11,15 +11,17 @@ import jinja2
 import prodigy
 import prodigy.components.db
 import prodigy.components.preprocess
+import prodigy.types
 import prodigy.util
 import rich
 import spacy
 import srsly
 import tqdm
 from dotenv import load_dotenv
-from prodigy.util import msg
+from prodigy.util import msg, log
 from rich.panel import Panel
 from spacy.language import Language
+from prodigy.components.sorters import Probability
 
 _ItemT = TypeVar("_ItemT")
 
@@ -178,7 +180,6 @@ class OpenAISuggester:
                     rich.print(Panel(response, title="Response from OpenAI"))
                 yield eg
 
-    # TODO
     def format_suggestions(
         self, stream: Iterable[Dict], *, nlp: Language
     ) -> Iterable[Dict]:
@@ -192,7 +193,7 @@ class OpenAISuggester:
             # can automatically snap to token boundaries, making the process much more efficient.
             doc = nlp.make_doc(example["text"])
             response = self._parse_response(example["openai"]["response"])
-            doc.cats[example["label"]] = example["answer"] == "accept"
+            example["chatgpt_answer"] = response["answer"] == "accept"
             yield prodigy.util.set_hashes(example)
 
     def _get_textcat_prompt(
@@ -230,7 +231,7 @@ class OpenAISuggester:
         responses = r.json()
         return [responses["choices"][i]["text"] for i in range(len(prompts))]
 
-    # TODO: Check sample OpenAI response first. This might be similar?
+    # TODO: Check sample OpenAI response first. Should probably return a str ("accept/reject")
     def _parse_response(self, text: str) -> List[Tuple[str, List[str]]]:
         """Interpret OpenAI's TextCat response. It's supposed to be
         a list of lines, with each line having the form:
@@ -255,7 +256,7 @@ class OpenAISuggester:
 
 
 @prodigy.recipe(
-    "textcat.openai.fetch",
+    "textcat.openai.teach",
     input_path=("Path to jsonl data to annotate", "positional", None, Path),
     output_path=("Path to save the output", "positional", None, Path),
     labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
@@ -268,10 +269,11 @@ class OpenAISuggester:
     segment=("Split sentences", "flag", "S", bool),
     verbose=("Print extra information to terminal", "option", "flag", bool),
 )
-def textcat_openai_fetch(
+def textcat_openai_teach(
+    dataset: str,
     input_path: Path,
-    output_path: Path,
     labels: List[str],
+    chatgpt_bias: float = 0.5,
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
@@ -281,13 +283,17 @@ def textcat_openai_fetch(
     max_examples: int = 2,
     verbose: bool = False,
 ):
-    """Get bulk TextCat suggestions from an OpenAI API, using zero-shot or few-shot learning.
-    The results can then be corrected using the `textcat.manual` recipe.
+    """Get bulk TextCat suggestions from an OpenAI API, using zero-shot or
+    few-shot learning.  The results can then be corrected using the
+    `textcat.manual` recipe.
 
-    This approach lets you get the openai queries out of the way upfront, which can help
-    if you want to use multiple annotators of if you want to make sure you don't have to
-    wait on the OpenAI queries. The downside is that you can't flag examples to be integrated
-    into the prompt during the annotation, unlike the textcat.openai.correct recipe.
+    Here, we use ChatGPT to suggest if a particular text talks about a recipe or
+    not. You can use the parameter `--chatgpt-bias` (float, 0 to 1 inclusive) to
+    set how much we prefer getting examples that ChatGPT thinks as recipes.
+
+    This approach lets you get the OpenAI queries out of the way upfront, which
+    can help if you want to use multiple annotators of if you want to make sure
+    you don't have to wait on the OpenAI queries.
     """
     api_key, api_org = _get_api_credentials(model)
     examples = _read_prompt_examples(examples_path)
@@ -308,7 +314,33 @@ def textcat_openai_fetch(
         openai.add_example(eg)
     stream = list(srsly.read_jsonl(input_path))
     stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
-    srsly.write_jsonl(output_path, stream)
+    stream = _prefer_gpt(stream, chatgpt_bias)
+
+    return {
+        "dataset": dataset,
+        "view_id": "blocks",
+        "stream": stream,
+        "update": openai.update,
+        "config": {
+            "labels": openai.labels,
+            "batch_size": batch_size,
+            "exclude_by": "input",
+            "blocks": [
+                {"view_id": "classification"},
+                {"view_id": "html", "html_template": HTML_TEMPLATE},
+            ],
+            "show_flag": True,
+            "global_css": CSS_FILE_PATH.read_text(),
+        },
+    }
+
+
+def _prefer_gpt(stream, bias: float) -> Iterable[Dict]:
+    log(f"SORTER: Resort stream to prefer positive classes (bias: {bias})")
+    sorted_stream = (
+        (bias, eg) if eg.get("chatgpt_answer") else (1 - bias, eg) for eg in stream
+    )
+    return Probability(sorted_stream)
 
 
 def _get_api_credentials(model: str = None) -> Tuple[str, str]:
