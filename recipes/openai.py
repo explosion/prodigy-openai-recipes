@@ -23,11 +23,9 @@ _PromptT = TypeVar("_PromptT", bound="PromptExample")
 @dataclass
 class PromptExample(abc.ABC):
     """An example to be passed into an OpenAI prompt.
-
     When inheriting this dataclass, you should implement the `from_prodigy`
     function that takes in a Prodigy task example and formats it back
     into a dataclass that can fill a prompt template.
-
     You can refer to Prodigy's API Interfaces documentation
     (https://prodi.gy/docs/api-interfaces) to see how most examples are structured
     for each task.
@@ -56,7 +54,6 @@ def normalize_label(label: str) -> str:
 
 class OpenAISuggester:
     """Suggest annotations using OpenAI's ChatGPT
-
     prompt_template (jinja2.Template): A Jinja2 template that contains the
         prompt to send to OpenAI's ChatGPT API.
     model (str): The ChatGPT model ID to use for completion. Check the OpenAI
@@ -195,7 +192,6 @@ class OpenAISuggester:
         self, stream: Iterable[_ItemT], batch_size: int
     ) -> Iterable[_ItemT]:
         """Get zero-shot or few-shot annotations from OpenAI.
-
         Given a stream of input examples, we define a prompt, get a response from OpenAI,
         and yield each example with their predictions to the output stream.
         """
@@ -363,7 +359,6 @@ def retry(
     error_codes: List[int] = [429, 503],
 ) -> httpx.Response:
     """Retry a call to the OpenAI API if we get a non-ok status code.
-
     This function automatically retries a request if it catches a response
     with an error code in `error_codes`. The amount of timeout also increases
     exponentially every time we retry.

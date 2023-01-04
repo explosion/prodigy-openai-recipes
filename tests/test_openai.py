@@ -93,7 +93,6 @@ def test_get_api_credentials_calls_fail(httpx_mock, monkeypatch, error_code):
 
 def test_get_api_credentials_model_does_not_exist(httpx_mock, monkeypatch):
     """Ensure that auth fails when model passed does not exist.
-
     https://beta.openai.com/docs/api-reference/models/list
     """
     httpx_mock.add_response(
