@@ -2,11 +2,9 @@ import copy
 import os
 import sys
 import time
-from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import (Callable, Dict, Iterable, List, Optional, Tuple, TypeVar,
-                    cast)
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 import httpx
 import jinja2
@@ -22,11 +20,12 @@ from dotenv import load_dotenv
 from prodigy.util import msg
 from rich.panel import Panel
 from spacy.language import Language
-from spacy.util import filter_spans
 
 _ItemT = TypeVar("_ItemT")
 
-DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "textcat_prompt.jinja2"
+DEFAULT_PROMPT_PATH = (
+    Path(__file__).parent.parent / "templates" / "textcat_prompt.jinja2"
+)
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
 
 TEXTCAT_LABEL = "Recipe"
@@ -248,7 +247,9 @@ class OpenAISuggester:
                 label = _normalize_label(label)
                 if label in self.labels:
                     if phrases.strip():
-                        phrases = [phrase.strip() for phrase in phrases.strip().split(",")]
+                        phrases = [
+                            phrase.strip() for phrase in phrases.strip().split(",")
+                        ]
                         output.append((label, phrases))
         return output
 
