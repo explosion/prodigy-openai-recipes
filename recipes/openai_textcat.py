@@ -167,6 +167,7 @@ class OpenAISuggester:
         and yield each example with their predictions to the output stream.
         """
         for batch in _batch_sequence(stream, batch_size):
+            breakpoint()
             prompts = [
                 self._get_textcat_prompt(
                     eg["text"], labels=self.labels, examples=self.examples
@@ -258,18 +259,20 @@ class OpenAISuggester:
 
 
 @prodigy.recipe(
+    # fmt: off
     "textcat.openai.teach",
     input_path=("Path to jsonl data to annotate", "positional", None, Path),
-    output_path=("Path to save the output", "positional", None, Path),
-    labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
-    lang=("Language to use for tokenizer.", "option", "l", str),
+    spacy_model=("spaCy model to bootstrap active learning from", "positional", None, str),
+    label=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
+    chatgpt_bias=("Control the probability of ChatGPT positive samples showing up", "option", "B", float),
     model=("GPT-3 model to use for completion", "option", "m", str),
-    examples_path=("Examples file to help define the task", "option", "e", Path),
-    max_examples=("Max examples to include in prompt", "option", "n", int),
-    prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
     segment=("Split sentences", "flag", "S", bool),
+    examples_path=("Examples file to help define the task", "option", "e", Path),
+    prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
+    max_examples=("Max examples to include in prompt", "option", "n", int),
     verbose=("Print extra information to terminal", "option", "flag", bool),
+    # fmt: on
 )
 def textcat_openai_teach(
     dataset: str,
