@@ -167,7 +167,6 @@ class OpenAISuggester:
         and yield each example with their predictions to the output stream.
         """
         for batch in _batch_sequence(stream, batch_size):
-            breakpoint()
             prompts = [
                 self._get_textcat_prompt(
                     eg["text"], labels=self.labels, examples=self.examples
@@ -194,9 +193,9 @@ class OpenAISuggester:
             example = copy.deepcopy(example)
             # This tokenizes the text with spaCy, so that annotations on the Prodigy UI
             # can automatically snap to token boundaries, making the process much more efficient.
-            doc = nlp.make_doc(example["text"])
             response = self._parse_response(example["openai"]["response"])
             example["chatgpt_answer"] = response["answer"] == "accept"
+            example["meta"]["reason"] = response["reason"]
             yield prodigy.util.set_hashes(example)
 
     def _get_textcat_prompt(
@@ -234,8 +233,7 @@ class OpenAISuggester:
         responses = r.json()
         return [responses["choices"][i]["text"] for i in range(len(prompts))]
 
-    # TODO: Check sample OpenAI response first. Should probably return a str ("accept/reject")
-    def _parse_response(self, text: str) -> List[Tuple[str, List[str]]]:
+    def _parse_response(self, text: str) -> Dict[str, str]:
         """Interpret OpenAI's TextCat response. It's supposed to be
         a list of lines, with each line having the form:
         Label: phrase1, phrase2, ...
@@ -244,17 +242,11 @@ class OpenAISuggester:
         us well-formed output. It could say anything, it's an LM.
         So we need to be robust.
         """
-        output = []
+        output = {}
         for line in text.strip().split("\n"):
             if line and ":" in line:
-                label, phrases = line.split(":", 1)
-                label = _normalize_label(label)
-                if label in self.labels:
-                    if phrases.strip():
-                        phrases = [
-                            phrase.strip() for phrase in phrases.strip().split(",")
-                        ]
-                        output.append((label, phrases))
+                key, value = line.split(":")
+                output[key.strip()] = value.strip()
         return output
 
 
@@ -307,7 +299,9 @@ def textcat_openai_teach(
         msg.fail("textcat.teach requires at least one --label", exits=1)
     nlp = spacy.load(spacy_model)
     name = prodigy.models.textcat.add_text_classifier(nlp, label)
-    model = prodigy.models.textcat.TextClassifier(nlp=nlp, labels=label, pipe_name=name)
+    nlp_model = prodigy.models.textcat.TextClassifier(
+        nlp=nlp, labels=label, pipe_name=name
+    )
     log(f"RECIPE: Creating TextClassifier with model {spacy_model}")
 
     if segment:
@@ -331,7 +325,7 @@ def textcat_openai_teach(
     stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
 
     # Setup update loop
-    predict = model
+    predict = nlp_model
     stream = _prefer_gpt(predict(stream), chatgpt_bias)
 
     return {
