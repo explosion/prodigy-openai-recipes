@@ -286,11 +286,7 @@ def textcat_openai_teach(
 
     Here, we use ChatGPT to suggest if a particular text talks about a recipe or
     not. You can use the parameter `--chatgpt-bias` (float, 0 to 1 inclusive) to
-    set how much we prefer getting examples that ChatGPT thinks as recipes.
-
-    This approach lets you get the OpenAI queries out of the way upfront, which
-    can help if you want to use multiple annotators of if you want to make sure
-    you don't have to wait on the OpenAI queries.
+    set how much we prefer seeing examples that ChatGPT thinks as recipes.
     """
 
     api_key, api_org = _get_api_credentials(model)
@@ -345,6 +341,63 @@ def textcat_openai_teach(
             "global_css": CSS_FILE_PATH.read_text(),
         },
     }
+
+
+@prodigy.recipe(
+    "textcat.openai.fetch",
+    input_path=("Path to jsonl data to annotate", "positional", None, Path),
+    output_path=("Path to save the output", "positional", None, Path),
+    labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
+    lang=("Language to use for tokenizer.", "option", "l", str),
+    model=("GPT-3 model to use for completion", "option", "m", str),
+    examples_path=("Examples file to help define the task", "option", "e", Path),
+    max_examples=("Max examples to include in prompt", "option", "n", int),
+    prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
+    batch_size=("Batch size to send to OpenAI API", "option", "b", int),
+    segment=("Split sentences", "flag", "S", bool),
+    verbose=("Print extra information to terminal", "option", "flag", bool),
+)
+def textcat_openai_fetch(
+    input_path: Path,
+    output_path: Path,
+    labels: List[str],
+    lang: str = "en",
+    model: str = "text-davinci-003",
+    batch_size: int = 10,
+    segment: bool = False,
+    examples_path: Optional[Path] = None,
+    prompt_path: Path = DEFAULT_PROMPT_PATH,
+    max_examples: int = 2,
+    verbose: bool = False,
+):
+    """Get bulk TextCat suggestions from an OpenAI API, using zero-shot or few-shot learning.
+    The results can then be corrected using the `textcat.manual` recipe.
+
+    This approach lets you get the openai queries out of the way upfront, which can help
+    if you want to use multiple annotators of if you want to make sure you don't have to
+    wait on the OpenAI queries. The downside is that you can't flag examples to be integrated
+    into the prompt during the annotation, unlike the ner.openai.correct recipe.
+    """
+    api_key, api_org = _get_api_credentials(model)
+    examples = _read_prompt_examples(examples_path)
+    nlp = spacy.blank(lang)
+    if segment:
+        nlp.add_pipe("sentencizer")
+    openai = OpenAISuggester(
+        openai_model=model,
+        labels=labels,
+        max_examples=max_examples,
+        prompt_template=_load_template(prompt_path),
+        verbose=verbose,
+        segment=segment,
+        openai_api_key=api_key,
+        openai_api_org=api_org,
+    )
+    for eg in examples:
+        openai.add_example(eg)
+    stream = list(srsly.read_jsonl(input_path))
+    stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
+    srsly.write_jsonl(output_path, stream)
 
 
 def _prefer_gpt(stream, bias: float) -> Iterable[Dict]:
