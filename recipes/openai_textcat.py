@@ -393,6 +393,7 @@ def textcat_openai_fetch(
         openai_api_key=api_key,
         openai_api_org=api_org,
         openai_timeout_s=30,
+        openai_n=5,
     )
     for eg in examples:
         openai.add_example(eg)
