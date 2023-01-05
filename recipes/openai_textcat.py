@@ -194,7 +194,7 @@ class OpenAISuggester:
             # This tokenizes the text with spaCy, so that annotations on the Prodigy UI
             # can automatically snap to token boundaries, making the process much more efficient.
             response = self._parse_response(example["openai"]["response"])
-            example["chatgpt_answer"] = response["answer"] == "accept"
+            example["answer"] = response["answer"] == "accept"
             example["meta"]["reason"] = response["reason"]
             yield prodigy.util.set_hashes(example)
 
@@ -246,7 +246,7 @@ class OpenAISuggester:
         for line in text.strip().split("\n"):
             if line and ":" in line:
                 key, value = line.split(":")
-                output[key.strip()] = value.strip()
+                output[key.strip().lower()] = value.strip()
         return output
 
 
@@ -351,7 +351,7 @@ def _prefer_gpt(stream, bias: float) -> Iterable[Dict]:
     log(f"SORTER: Resort stream to prefer positive classes (bias: {bias})")
     sorted_stream = (
         (prodigy.components.sorters.get_uncertainty(score, bias), eg)
-        if eg.get("chatgpt_answer")
+        if eg.get("answer")
         else (prodigy.components.sorters.get_uncertainty(score, 1 - bias), eg)
         for score, eg in stream
     )
