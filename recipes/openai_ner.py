@@ -22,6 +22,9 @@ from dotenv import load_dotenv
 from prodigy.util import msg
 from rich.panel import Panel
 from spacy.language import Language
+from spacy.scorer import Scorer
+from spacy.tokens import Doc, Span
+from spacy.training import Example
 from spacy.util import filter_spans
 
 _ItemT = TypeVar("_ItemT")
@@ -194,21 +197,9 @@ class OpenAISuggester:
             # This tokenizes the text with spaCy, so that annotations on the Prodigy UI
             # can automatically snap to token boundaries, making the process much more efficient.
             doc = nlp.make_doc(example["text"])
-            response = self._parse_response(example["openai"]["response"])
-            spacy_spans = []
-            for label, phrases in response:
-                label = _normalize_label(label)
-                if label in self.labels:
-                    offsets = _find_substrings(doc.text, phrases)
-                    for start, end in offsets:
-                        span = doc.char_span(
-                            start, end, alignment_mode="contract", label=label
-                        )
-                        if span is not None:
-                            spacy_spans.append(span)
-            # This step prevents the same token from being used in multiple spans.
-            # If there's a conflict, the longer span is preserved.
-            spacy_spans = filter_spans(spacy_spans)
+            spacy_spans = self.get_spacy_spans(
+                doc, example["openai"]["response"], labels=self.labels
+            )
             spans = [
                 {
                     "label": span.label_,
@@ -256,7 +247,8 @@ class OpenAISuggester:
         responses = r.json()
         return [responses["choices"][i]["text"] for i in range(len(prompts))]
 
-    def _parse_response(self, text: str) -> List[Tuple[str, List[str]]]:
+    @classmethod
+    def parse_response(cls, text: str) -> List[Tuple[str, List[str]]]:
         """Interpret OpenAI's NER response. It's supposed to be
         a list of lines, with each line having the form:
         Label: phrase1, phrase2, ...
@@ -270,11 +262,28 @@ class OpenAISuggester:
             if line and ":" in line:
                 label, phrases = line.split(":", 1)
                 label = _normalize_label(label)
-                if label in self.labels:
-                    if phrases.strip():
-                        phrases = [phrase.strip() for phrase in phrases.strip().split(",")]
-                        output.append((label, phrases))
+                if phrases.strip():
+                    phrases = [phrase.strip() for phrase in phrases.strip().split(",")]
+                    output.append((label, phrases))
         return output
+
+    @classmethod
+    def get_spacy_spans(cls, doc: Doc, response: str, labels: List[str]) -> List[Span]:
+        spacy_spans = []
+        for label, phrases in cls.parse_response(response):
+            label = _normalize_label(label)
+            if label in labels:
+                offsets = _find_substrings(doc.text, phrases)
+                for start, end in offsets:
+                    span = doc.char_span(
+                        start, end, alignment_mode="contract", label=label
+                    )
+                    if span is not None:
+                        spacy_spans.append(span)
+        # This step prevents the same token from being used in multiple spans.
+        # If there's a conflict, the longer span is preserved.
+        spacy_spans = filter_spans(spacy_spans)
+        return spacy_spans
 
 
 @prodigy.recipe(
@@ -403,6 +412,46 @@ def ner_openai_fetch(
     stream = list(srsly.read_jsonl(input_path))
     stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
     srsly.write_jsonl(output_path, stream)
+
+
+@prodigy.recipe(
+    "ner.openai.evaluate",
+    dataset=("Dataset to evaluate", "positional", None, str),
+    lang=("Language to use for tokenizer.", "option", "l", str),
+)
+def ner_openai_evaluate(dataset: str, labels: str, lang: str = "en"):
+    """Evaluate the accuracy of the OpenAI zero-shot responses against the corrected annotations."""
+    db = prodigy.components.db.connect()
+    nlp = spacy.blank(lang)
+    labels_list = [_normalize_label(l) for l in labels.split(",")]
+    spacy_examples = []
+    for eg in db.get_dataset(dataset):
+        pred_doc = nlp.make_doc(eg["text"])
+        gold_doc = nlp.make_doc(eg["text"])
+        gold_spans = []
+        for span in eg["spans"]:
+            span = gold_doc.char_span(
+                span["start"],
+                span["end"],
+                alignment_mode="contract",
+                label=span["label"],
+            )
+            if span is not None:
+                gold_spans.append(span)
+        gold_doc.set_ents(gold_spans)
+        pred_spans = OpenAISuggester.get_spacy_spans(
+            pred_doc, eg["openai"]["response"], labels=labels_list
+        )
+        pred_doc.set_ents(pred_spans)
+        spacy_examples.append(Example(pred_doc, gold_doc))
+    scores = Scorer().score(spacy_examples)
+    # TODO: Improve formatting here
+    print("P", scores["ents_p"])
+    print("R", scores["ents_r"])
+    print("F", scores["ents_f"])
+    for label in labels_list:
+        label_scores = scores["ents_per_type"][label]
+        print(label, label_scores["p"], label_scores["r"], label_scores["f"])
 
 
 def _get_api_credentials(model: str = None) -> Tuple[str, str]:
