@@ -1,5 +1,6 @@
 import copy
 import os
+import random
 import sys
 import time
 from dataclasses import dataclass
@@ -20,10 +21,9 @@ import spacy
 import srsly
 import tqdm
 from dotenv import load_dotenv
-from prodigy.util import msg, log
+from prodigy.util import log, msg
 from rich.panel import Panel
 from spacy.language import Language
-
 
 _ItemT = TypeVar("_ItemT")
 
@@ -136,13 +136,20 @@ class OpenAISuggester:
         self.openai_n = openai_n
 
     def __call__(
-        self, stream: Iterable[Dict], *, nlp: Language, batch_size: int
+        self,
+        stream: Iterable[Dict],
+        *,
+        nlp: Language,
+        batch_size: int,
+        negative_bias: Optional[float] = None,
     ) -> Iterable[Dict]:
         if self.segment:
             stream = prodigy.components.preprocess.split_sentences(nlp, stream)
 
         stream = self.stream_suggestions(stream, batch_size=batch_size)
         stream = self.format_suggestions(stream, nlp=nlp)
+        if negative_bias:
+            stream = self.filter_suggestions(stream, negative_bias=negative_bias)
         return stream
 
     def update(self, examples: Iterable[Dict]) -> float:
@@ -196,6 +203,24 @@ class OpenAISuggester:
             response = self._parse_response(example["openai"]["response"])
             example["answer"] = response["answer"] == "accept"
             example["meta"]["reason"] = response["reason"]
+            yield prodigy.util.set_hashes(example)
+
+    def filter_suggestions(
+        self, stream: Iterable[Dict], negative_bias: float
+    ) -> Iterable[Dict]:
+        """Filter the examples based on some negative_bias"""
+        for example in stream:
+            _example = copy.deepcopy(example)
+            if _example["answer"]:
+                # If ChatGPT accepts it, then yield
+                example = _example
+            else:
+                # If ChatGPT rejects it, roll the dice
+                rng = random.uniform(0, 1)
+                if rng <= negative_bias:
+                    example = _example
+                else:
+                    continue
             yield prodigy.util.set_hashes(example)
 
     def _get_textcat_prompt(
@@ -323,6 +348,92 @@ def textcat_openai_teach(
     # Setup update loop
     predict = nlp_model
     stream = _prefer_gpt(predict(stream), chatgpt_bias)
+
+    return {
+        "dataset": dataset,
+        "view_id": "blocks",
+        "stream": stream,
+        "update": openai.update,
+        "config": {
+            "labels": openai.labels,
+            "batch_size": batch_size,
+            "exclude_by": "input",
+            "blocks": [
+                {"view_id": "classification"},
+                {"view_id": "html", "html_template": HTML_TEMPLATE},
+            ],
+            "show_flag": True,
+            "global_css": CSS_FILE_PATH.read_text(),
+        },
+    }
+
+
+@prodigy.recipe(
+    # fmt: off
+    "textcat.openai.suggest",
+    input_path=("Path to jsonl data to annotate", "positional", None, Path),
+    label=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
+    lang=("Language to initialize spaCy model", "option", "l", str),
+    negative_bias=("Probability of negative examples to be included in the stream", "option", "B", float),
+    model=("GPT-3 model to use for completion", "option", "m", str),
+    batch_size=("Batch size to send to OpenAI API", "option", "b", int),
+    segment=("Split sentences", "flag", "S", bool),
+    examples_path=("Examples file to help define the task", "option", "e", Path),
+    prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
+    max_examples=("Max examples to include in prompt", "option", "n", int),
+    verbose=("Print extra information to terminal", "option", "flag", bool),
+    # fmt: on
+)
+def textcat_openai_suggest(
+    dataset: str,
+    input_path: Path,
+    label: List[str],
+    lang: str = "en",
+    negative_bias: float = 0.5,
+    model: str = "text-davinci-003",
+    batch_size: int = 10,
+    segment: bool = False,
+    examples_path: Optional[Path] = None,
+    prompt_path: Path = DEFAULT_PROMPT_PATH,
+    max_examples: int = 2,
+    verbose: bool = False,
+):
+    """Get bulk TextCat suggestions from an OpenAI API, using zero-shot or
+    few-shot learning.  The results can then be corrected using the
+    `textcat.manual` recipe.
+
+    Here, we use ChatGPT to suggest if a particular text talks about a recipe or
+    not. You can use the parameter `--chatgpt-bias` (float, 0 to 1 inclusive) to
+    set how much we prefer seeing examples that ChatGPT thinks as recipes.
+    """
+
+    api_key, api_org = _get_api_credentials(model)
+    examples = _read_prompt_examples(examples_path)
+    if label is None:
+        msg.fail("textcat.teach requires at least one --label", exits=1)
+    nlp = spacy.blank(lang)
+
+    if segment:
+        nlp.add_pipe("sentencizer")
+
+    openai = OpenAISuggester(
+        openai_model=model,
+        labels=label,
+        max_examples=max_examples,
+        prompt_template=_load_template(prompt_path),
+        verbose=verbose,
+        segment=segment,
+        openai_api_key=api_key,
+        openai_api_org=api_org,
+    )
+
+    for eg in examples:
+        openai.add_example(eg)
+
+    stream = list(srsly.read_jsonl(input_path))
+    stream = openai(
+        tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp, negative_bias=negative_bias
+    )
 
     return {
         "dataset": dataset,
