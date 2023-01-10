@@ -231,7 +231,6 @@ class OpenAISuggester:
         The prompt can use examples to further clarify the task. Note that using too
         many examples will make the prompt too large, slowing things down.
         """
-        # TODO: Update this once you have "finalized" your prompt
         return self.prompt_template.render(text=text, labels=labels, examples=examples)
 
     def _get_textcat_response(self, prompts: List[str]) -> List[str]:
