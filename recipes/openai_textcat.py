@@ -421,6 +421,8 @@ def textcat_openai_suggest(
         segment=segment,
         openai_api_key=api_key,
         openai_api_org=api_org,
+        openai_timeout_s=120,
+        openai_n=10,
     )
 
     for eg in examples:
