@@ -203,25 +203,22 @@ class OpenAISuggester:
             response = self._parse_response(example["openai"]["response"])
             example["answer"] = response["answer"] == "accept"
             example["meta"]["reason"] = response["reason"]
-            yield prodigy.util.set_hashes(example)
+            yield example
 
     def filter_suggestions(
         self, stream: Iterable[Dict], negative_bias: float
     ) -> Iterable[Dict]:
         """Filter the examples based on some negative_bias"""
         for example in stream:
-            _example = copy.deepcopy(example)
-            if _example["answer"]:
-                # If ChatGPT accepts it, then yield
-                example = _example
-            else:
-                # If ChatGPT rejects it, roll the dice
+            if example.get("answer") != "accept":
                 rng = random.uniform(0, 1)
                 if rng <= negative_bias:
-                    example = _example
+                    eg = example
                 else:
                     continue
-            yield prodigy.util.set_hashes(example)
+            else:
+                eg = example
+            yield prodigy.util.set_hashes(eg)
 
     def _get_textcat_prompt(
         self, text: str, labels: List[str], examples: List[PromptExample]
