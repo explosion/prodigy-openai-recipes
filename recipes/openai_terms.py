@@ -111,7 +111,7 @@ def terms_openai_fetch(
         parsed_terms = _parse_terms(completion=completion)
         srsly.write_jsonl(
             output_path,
-            [{"text": t} for t in parsed_terms],
+            [{"text": t, "meta": {"openai_query": query}} for t in parsed_terms],
             append=True,
             append_new_line=False,
         )
