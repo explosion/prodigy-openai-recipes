@@ -25,6 +25,9 @@ from prodigy.util import log, msg
 from rich.panel import Panel
 from spacy.language import Language
 
+timeout = httpx.Timeout(120.0, connect=60.0)
+client = httpx.Client(timeout=timeout)
+
 _ItemT = TypeVar("_ItemT")
 
 DEFAULT_PROMPT_PATH = (
@@ -141,15 +144,14 @@ class OpenAISuggester:
         *,
         nlp: Language,
         batch_size: int,
-        negative_bias: Optional[float] = None,
+        negative_bias: float = 1.0,
     ) -> Iterable[Dict]:
         if self.segment:
             stream = prodigy.components.preprocess.split_sentences(nlp, stream)
 
         stream = self.stream_suggestions(stream, batch_size=batch_size)
         stream = self.format_suggestions(stream, nlp=nlp)
-        if negative_bias:
-            stream = self.filter_suggestions(stream, negative_bias=negative_bias)
+        stream = self.filter_suggestions(stream, negative_bias=negative_bias)
         return stream
 
     def update(self, examples: Iterable[Dict]) -> float:
@@ -180,7 +182,7 @@ class OpenAISuggester:
                 )
                 for eg in batch
             ]
-            responses = self._get_textcat_response(prompts)
+            responses = self._get_textcat_response(prompts, delay=0)
             for eg, prompt, response in zip(batch, prompts, responses):
                 if self.verbose:
                     rich.print(Panel(prompt, title="Prompt to OpenAI"))
@@ -230,14 +232,15 @@ class OpenAISuggester:
         """
         return self.prompt_template.render(text=text, labels=labels, examples=examples)
 
-    def _get_textcat_response(self, prompts: List[str]) -> List[str]:
+    def _get_textcat_response(self, prompts: List[str], delay: int = 0) -> List[str]:
         headers = {
             "Authorization": f"Bearer {self.openai_api_key}",
             "OpenAI-Organization": self.openai_api_org,
             "Content-Type": "application/json",
         }
+        time.sleep(delay)
         r = _retry429(
-            lambda: httpx.post(
+            lambda: client.post(
                 "https://api.openai.com/v1/completions",
                 headers=headers,
                 json={
@@ -266,7 +269,7 @@ class OpenAISuggester:
         output = {}
         for line in text.strip().split("\n"):
             if line and ":" in line:
-                key, value = line.split(":")
+                key, value = line.split(":", 1)
                 output[key.strip().lower()] = value.strip()
         return output
 
@@ -480,13 +483,7 @@ def textcat_openai_fetch(
     verbose: bool = False,
 ):
     """Get bulk TextCat suggestions from an OpenAI API, using zero-shot or few-shot learning.
-    The results can then be corrected using the `textcat.manual` recipe.
-
-    This approach lets you get the openai queries out of the way upfront, which can help
-    if you want to use multiple annotators of if you want to make sure you don't have to
-    wait on the OpenAI queries. The downside is that you can't flag examples to be integrated
-    into the prompt during the annotation, unlike the ner.openai.correct recipe.
-    """
+    The results can then be corrected using the `textcat.manual` recipe."""
     api_key, api_org = _get_api_credentials(model)
     examples = _read_prompt_examples(examples_path)
     nlp = spacy.blank(lang)
