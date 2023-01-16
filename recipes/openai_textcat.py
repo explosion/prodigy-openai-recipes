@@ -35,7 +35,7 @@ DEFAULT_PROMPT_PATH = (
 )
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
 
-TEXTCAT_LABEL = "Recipe"
+TEXTCAT_LABEL = ["Recipe"]
 
 HTML_TEMPLATE = """
 <div class="cleaned">
@@ -59,7 +59,7 @@ class PromptExample:
     """An example to be passed into an OpenAI TextCat prompt."""
 
     text: str
-    label: str = TEXTCAT_LABEL
+    labels: str = TEXTCAT_LABEL
 
     @staticmethod
     def is_flagged(example: Dict) -> bool:
@@ -224,10 +224,17 @@ class OpenAISuggester:
     ) -> str:
         """Generate a prompt for text categorization.
 
-        The prompt can use examples to further clarify the task. Note that using too
-        many examples will make the prompt too large, slowing things down.
+        If the length of the labels list is exactly 1, then it assumes
+        that the task is binary classification and it expects the prompt
+        template to be formatted as such. Else, it expects a multilabel
+        classification template.
         """
-        return self.prompt_template.render(text=text, labels=labels, examples=examples)
+        if len(labels) == 1:
+            # Mostly binary classification
+            self.prompt_template.render(text=text, label=labels[0])
+        else:
+            # Mostly multilabel textcat
+            self.prompt_template.render(text=text, labels=labels)
 
     def _get_textcat_response(self, prompts: List[str], delay: int = 0) -> List[str]:
         headers = {
@@ -257,7 +264,9 @@ class OpenAISuggester:
     def _parse_response(self, text: str) -> Dict[str, str]:
         """Interpret OpenAI's TextCat response. It's supposed to be
         a list of lines, with each line having the form:
-        Label: phrase1, phrase2, ...
+
+        answer: <accept/reject for binary or the label for multilabel>
+        reason: <string>
 
         However, there's no guarantee that the model will give
         us well-formed output. It could say anything, it's an LM.
