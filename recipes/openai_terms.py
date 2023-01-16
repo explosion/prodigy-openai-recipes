@@ -1,7 +1,6 @@
 import os
-import time
 from pathlib import Path
-from typing import Callable, List, TypeVar
+from typing import List
 
 import httpx
 import jinja2
@@ -15,8 +14,6 @@ from dotenv import load_dotenv
 from prodigy.util import msg
 from rich.panel import Panel
 from rich.pretty import Pretty
-
-_ItemT = TypeVar("_ItemT")
 
 DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "terms_prompt.jinja2"
 
@@ -38,22 +35,28 @@ def _load_template(path: Path) -> jinja2.Template:
     return jinja2.Template(text)
 
 
-def _parse_terms(completion):
-    # Sometimes it only returns a single item. For example, when there are
-    # many, many seeds around.
+def _parse_terms(completion: str) -> List[str]:
     if "\n" not in completion:
-        return [completion.replace("-", "").strip().lower()]
-    # Other times we cannot assume the final item will have had sufficient 
-    # tokens available to complete the term, so we have to discard it.
-    lines = completion.split("\n")
-    return [item.replace("-", "").strip().lower() for item in lines][:-1]
+        # Sometimes it only returns a single item. For example, when there are
+        # many, many seeds around.
+        lines = [completion]
+    else:
+        # Other times we cannot assume the final item will have had sufficient
+        # tokens available to complete the term, so we have to discard it.
+        lines = completion.split("\n")[:-1]
+    return [item.replace("-", "").lstrip().lower() for item in lines]
 
 
 @prodigy.recipe(
     "terms.openai.fetch",
     query=("Query to send to OpenAI", "positional", None, str),
     output_path=("Path to save the output", "positional", None, Path),
-    seeds=("One of more comma-seperated seed phrases.","option","s",lambda d: d.split(","),),
+    seeds=(
+        "One of more comma-seperated seed phrases.",
+        "option",
+        "s",
+        lambda d: d.split(","),
+    ),
     n=("Number of items to generate", "option", "n", int),
     model=("GPT-3 model to use for completion", "option", "m", str),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
@@ -119,4 +122,6 @@ def terms_openai_fetch(
         if verbose:
             rich.print(Panel(Pretty(terms), title="Terms collected sofar."))
         if progress:
-            rich.print(f"Received {len(parsed_terms)} items, totalling {len(terms)} terms. Progress at {round(len(terms)/n*100)}%.")
+            rich.print(
+                f"Received {len(parsed_terms)} items, totalling {len(terms)} terms. Progress at {round(len(terms)/n*100)}%."
+            )
