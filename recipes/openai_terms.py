@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 from typing import List
 
@@ -44,7 +45,7 @@ def _parse_terms(completion: str) -> List[str]:
         # Other times we cannot assume the final item will have had sufficient
         # tokens available to complete the term, so we have to discard it.
         lines = completion.split("\n")[:-1]
-    return [item.replace("-", "").lstrip().lower() for item in lines]
+    return [item.replace("-", "").strip().lower() for item in lines]
 
 
 @prodigy.recipe(
@@ -63,6 +64,7 @@ def _parse_terms(completion: str) -> List[str]:
     verbose=("Print extra information to terminal", "flag", "v", bool),
     resume=("Resume by loading in text examples from output file.", "flag", "r", bool),
     progress=("Print progress of the recipe.", "flag", "pb", bool),
+    temperature=("OpenAI temperature param", "option", "mt", float),
     max_tokens=("Max tokens to generate", "option", "t", int),
 )
 def terms_openai_fetch(
@@ -76,6 +78,7 @@ def terms_openai_fetch(
     resume: bool = False,
     progress: bool = False,
     max_tokens=100,
+    temperature=1.0,
 ):
     """Get bulk term suggestions from an OpenAI API, using zero-shot learning.
     The results can then be corrected using the `terms.openai.correct` recipe.
@@ -85,6 +88,7 @@ def terms_openai_fetch(
     wait on the OpenAI queries. The downside is that you can't flag examples to be integrated
     into the prompt during the annotation.
     """
+    tic = time.time()
     template = _load_template(prompt_path)
     terms = []
     if resume:
@@ -105,7 +109,7 @@ def terms_openai_fetch(
             json={
                 "model": model,
                 "prompt": [prompt],
-                "temperature": 1,
+                "temperature": temperature,
                 "max_tokens": max_tokens,
             },
             timeout=30,
@@ -123,5 +127,5 @@ def terms_openai_fetch(
             rich.print(Panel(Pretty(terms), title="Terms collected sofar."))
         if progress:
             rich.print(
-                f"Received {len(parsed_terms)} items, totalling {len(terms)} terms. Progress at {round(len(terms)/n*100)}%."
+                f"Received {len(parsed_terms)} items, totalling {len(terms)} terms. Progress at {round(len(terms)/n*100)}% after {round(time.time() - tic)}s."
             )
