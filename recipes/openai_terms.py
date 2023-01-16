@@ -2,6 +2,7 @@ import os
 import time
 from pathlib import Path
 from typing import List
+from functools import reduce
 
 import httpx
 import jinja2
@@ -53,12 +54,7 @@ def _parse_terms(completion: str) -> List[str]:
     "terms.openai.fetch",
     query=("Query to send to OpenAI", "positional", None, str),
     output_path=("Path to save the output", "positional", None, Path),
-    seeds=(
-        "One of more comma-seperated seed phrases.",
-        "option",
-        "s",
-        lambda d: d.split(","),
-    ),
+    seeds=("One of more comma-seperated seed phrases.","option","s",lambda d: d.split(",")),
     n=("Number of items to generate", "option", "n", int),
     model=("GPT-3 model to use for completion", "option", "m", str),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
@@ -68,6 +64,7 @@ def _parse_terms(completion: str) -> List[str]:
     temperature=("OpenAI temperature param", "option", "mt", float),
     top_p=("OpenAI top_p param", "option", "tp", float),
     best_of=("OpenAI best_of param", "option", "b", int),
+    n_batch=("Batch size to send to OpenAI", "option", "bs", int),
     max_tokens=("Max tokens to generate", "option", "t", int),
 )
 def terms_openai_fetch(
@@ -82,7 +79,8 @@ def terms_openai_fetch(
     progress: bool = False,
     temperature=1.0,
     top_p=1.0,
-    best_of=1,
+    best_of=10,
+    n_batch=10,
     max_tokens=100,
 ):
     """Get bulk term suggestions from an OpenAI API, using zero-shot learning.
@@ -95,41 +93,62 @@ def terms_openai_fetch(
     """
     tic = time.time()
     template = _load_template(prompt_path)
+    # The `best_of` param cannot be less than the amount we batch.
+    if best_of < n_batch:
+        best_of = n_batch
+    
+    # Start collection of terms. If we resume we also fill seed terms with file contents.
     terms = []
     if resume:
-        examples = srsly.read_jsonl(output_path)
-        seeds.extend([e["text"] for e in examples])
+        if output_path.exists():
+            examples = srsly.read_jsonl(output_path)
+            seeds.extend([e["text"] for e in examples])
+    
     headers = {
         "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
         "OpenAI-Organization": os.getenv("OPENAI_ORG"),
         "Content-Type": "application/json",
     }
+
+    # This recipe may overshoot the target, but we keep going until we have at least `n`
     while len(terms) < n:
         prompt = template.render(n=n, examples=seeds + terms, description=query)
         if verbose:
             rich.print(Panel(prompt, title="Prompt to OpenAI"))
-        resp = httpx.post(
-            "https://api.openai.com/v1/completions",
-            headers=headers,
-            json={
-                "model": model,
-                "prompt": [prompt],
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "top_p": top_p,
-                "n": 1,
-                "best_of": best_of
-            },
-            timeout=30,
-        )
-        completion = resp.json()["choices"][0]["text"]
-        parsed_terms = _parse_terms(completion=completion)
+        try:
+            resp = httpx.post(
+                "https://api.openai.com/v1/completions",
+                headers=headers,
+                json={
+                    "model": model,
+                    "prompt": [prompt],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "top_p": top_p,
+                    "n": min(n_batch, best_of),
+                    "best_of": best_of
+                },
+                timeout=30,
+            )
+            choices = resp.json()['choices']
+        except KeyError:
+            msg.fail("Did not receive completions from OpenAI. Instead we received:")
+            rich.print(resp.json())
+            exit(code=1)
+        
+        # Cast to a set to make sure we remove duplicates
+        sets_of_terms = [set(_parse_terms(c['text'])) for c in choices]
+        parsed_terms = list(reduce(lambda a,b: a.union(b), sets_of_terms))
+
+        # Save intermediate results into file, in-case of a hiccup
         srsly.write_jsonl(
             output_path,
             [{"text": t, "meta": {"openai_query": query}} for t in parsed_terms],
             append=True,
             append_new_line=False,
         )
+
+        # Make the terms list bigger and re-use terms in next prompt.
         terms.extend(parsed_terms)
         if verbose:
             rich.print(Panel(Pretty(terms), title="Terms collected sofar."))
