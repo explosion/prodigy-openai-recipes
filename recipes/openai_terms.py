@@ -154,5 +154,6 @@ def terms_openai_fetch(
             rich.print(Panel(Pretty(terms), title="Terms collected sofar."))
         if progress:
             rich.print(
-                f"Received {len(parsed_terms)} items, totalling {len(terms)} terms. Progress at {round(len(terms)/n*100)}% after {round(time.time() - tic)}s."
+                f"Received {len(parsed_terms)} items, totalling {len(terms)} terms." 
+                f"Progress at {round(len(terms)/n*100)}% after {round(time.time() - tic)}s."
             )
