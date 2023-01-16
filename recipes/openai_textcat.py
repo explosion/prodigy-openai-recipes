@@ -279,7 +279,7 @@ class OpenAISuggester:
     "textcat.openai.teach",
     input_path=("Path to jsonl data to annotate", "positional", None, Path),
     spacy_model=("spaCy model to bootstrap active learning from", "positional", None, str),
-    label=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
+    labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
     chatgpt_bias=("Control the probability of ChatGPT positive samples showing up", "option", "B", float),
     model=("GPT-3 model to use for completion", "option", "m", str),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
@@ -294,7 +294,7 @@ def textcat_openai_teach(
     dataset: str,
     input_path: Path,
     spacy_model: str,
-    label: List[str],
+    labels: List[str],
     chatgpt_bias: float = 0.5,
     model: str = "text-davinci-003",
     batch_size: int = 10,
@@ -315,12 +315,12 @@ def textcat_openai_teach(
 
     api_key, api_org = _get_api_credentials(model)
     examples = _read_prompt_examples(examples_path)
-    if label is None:
+    if labels is None:
         msg.fail("textcat.teach requires at least one --label", exits=1)
     nlp = spacy.load(spacy_model)
-    name = prodigy.models.textcat.add_text_classifier(nlp, label)
+    name = prodigy.models.textcat.add_text_classifier(nlp, labels)
     nlp_model = prodigy.models.textcat.TextClassifier(
-        nlp=nlp, labels=label, pipe_name=name
+        nlp=nlp, labels=labels, pipe_name=name
     )
     log(f"RECIPE: Creating TextClassifier with model {spacy_model}")
 
@@ -329,7 +329,7 @@ def textcat_openai_teach(
 
     openai = OpenAISuggester(
         openai_model=model,
-        labels=label,
+        labels=labels,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
         verbose=verbose,
@@ -371,7 +371,7 @@ def textcat_openai_teach(
     # fmt: off
     "textcat.openai.suggest",
     input_path=("Path to jsonl data to annotate", "positional", None, Path),
-    label=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
+    labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
     lang=("Language to initialize spaCy model", "option", "l", str),
     negative_bias=("Probability of negative examples to be included in the stream", "option", "B", float),
     model=("GPT-3 model to use for completion", "option", "m", str),
@@ -386,7 +386,7 @@ def textcat_openai_teach(
 def textcat_openai_suggest(
     dataset: str,
     input_path: Path,
-    label: List[str],
+    labels: List[str],
     lang: str = "en",
     negative_bias: float = 0.5,
     model: str = "text-davinci-003",
@@ -408,7 +408,7 @@ def textcat_openai_suggest(
 
     api_key, api_org = _get_api_credentials(model)
     examples = _read_prompt_examples(examples_path)
-    if label is None:
+    if labels is None:
         msg.fail("textcat.teach requires at least one --label", exits=1)
     nlp = spacy.blank(lang)
 
@@ -417,7 +417,7 @@ def textcat_openai_suggest(
 
     openai = OpenAISuggester(
         openai_model=model,
-        labels=label,
+        labels=labels,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
         verbose=verbose,
