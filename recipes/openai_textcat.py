@@ -3,7 +3,7 @@ import os
 import random
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
 
@@ -59,7 +59,7 @@ class PromptExample:
     """An example to be passed into an OpenAI TextCat prompt."""
 
     text: str
-    labels: str = TEXTCAT_LABEL
+    labels: list = field(default_factory=list)
 
     @staticmethod
     def is_flagged(example: Dict) -> bool:
@@ -231,10 +231,11 @@ class OpenAISuggester:
         """
         if len(labels) == 1:
             # Mostly binary classification
-            self.prompt_template.render(text=text, label=labels[0])
+            prompt = self.prompt_template.render(text=text, label=labels[0])
         else:
             # Mostly multilabel textcat
-            self.prompt_template.render(text=text, labels=labels)
+            prompt = self.prompt_template.render(text=text, labels=labels)
+        return prompt
 
     def _get_textcat_response(self, prompts: List[str], delay: int = 0) -> List[str]:
         headers = {
