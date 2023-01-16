@@ -44,8 +44,9 @@ def _parse_terms(completion: str) -> List[str]:
     else:
         # Other times we cannot assume the final item will have had sufficient
         # tokens available to complete the term, so we have to discard it.
-        lines = completion.split("\n")[:-1]
-    return [item.replace("-", "").strip().lower() for item in lines]
+        lines = [item for item in completion.split("\n") if len(item)]
+        lines = lines[:-1]
+    return [item.replace("-", "").strip() for item in lines]
 
 
 @prodigy.recipe(
@@ -65,6 +66,7 @@ def _parse_terms(completion: str) -> List[str]:
     resume=("Resume by loading in text examples from output file.", "flag", "r", bool),
     progress=("Print progress of the recipe.", "flag", "pb", bool),
     temperature=("OpenAI temperature param", "option", "mt", float),
+    top_p=("OpenAI top_p param", "option", "tp", float),
     max_tokens=("Max tokens to generate", "option", "t", int),
 )
 def terms_openai_fetch(
@@ -77,8 +79,9 @@ def terms_openai_fetch(
     verbose: bool = False,
     resume: bool = False,
     progress: bool = False,
-    max_tokens=100,
     temperature=1.0,
+    top_p=1.0,
+    max_tokens=100,
 ):
     """Get bulk term suggestions from an OpenAI API, using zero-shot learning.
     The results can then be corrected using the `terms.openai.correct` recipe.
@@ -111,6 +114,7 @@ def terms_openai_fetch(
                 "prompt": [prompt],
                 "temperature": temperature,
                 "max_tokens": max_tokens,
+                "top_p": top_p
             },
             timeout=30,
         )
