@@ -32,13 +32,13 @@ single_completion = "monopoly"
 
 
 test_cases = [
-    (base_completion, ["monopoly", "Scrabble"]),
-    (base_completion_with_trailing_spaces, ["monopoly", "scrabble"]),
-    (trailing_token_completion, ["monopoly", "scrabble", "Risk"]),
-    (single_completion, ["monopoly"]),
+    ("Base OpenAI completion", base_completion, ["monopoly", "Scrabble"]),
+    ("Check trailing spaces", base_completion_with_trailing_spaces, ["monopoly", "scrabble"]),
+    ("Completion with bad final item", trailing_token_completion, ["monopoly", "scrabble", "Risk"]),
+    ("Single completion", single_completion, ["monopoly"]),
 ]
 
 
-@pytest.mark.parametrize("completion,expectation", test_cases)
-def test_parse_terms(completion, expectation):
+@pytest.mark.parametrize("comment,completion,expectation", test_cases)
+def test_parse_terms(comment, completion, expectation):
     assert _parse_terms(completion=completion) == expectation

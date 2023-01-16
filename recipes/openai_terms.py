@@ -67,6 +67,7 @@ def _parse_terms(completion: str) -> List[str]:
     progress=("Print progress of the recipe.", "flag", "pb", bool),
     temperature=("OpenAI temperature param", "option", "mt", float),
     top_p=("OpenAI top_p param", "option", "tp", float),
+    best_of=("OpenAI best_of param", "option", "b", int),
     max_tokens=("Max tokens to generate", "option", "t", int),
 )
 def terms_openai_fetch(
@@ -81,6 +82,7 @@ def terms_openai_fetch(
     progress: bool = False,
     temperature=1.0,
     top_p=1.0,
+    best_of=1,
     max_tokens=100,
 ):
     """Get bulk term suggestions from an OpenAI API, using zero-shot learning.
@@ -114,7 +116,9 @@ def terms_openai_fetch(
                 "prompt": [prompt],
                 "temperature": temperature,
                 "max_tokens": max_tokens,
-                "top_p": top_p
+                "top_p": top_p,
+                "n": 1,
+                "best_of": best_of
             },
             timeout=30,
         )
