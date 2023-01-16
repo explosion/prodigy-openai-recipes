@@ -48,10 +48,6 @@ HTML_TEMPLATE = """
 </div>
 """
 
-# Set up openai
-load_dotenv()  # take environment variables from .env.
-
-
 @dataclass
 class PromptExample:
     """An example to be passed into an OpenAI NER prompt."""
