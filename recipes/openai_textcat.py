@@ -37,9 +37,6 @@ CSS_FILE_PATH = Path(__file__).parent / "style.css"
 
 TEXTCAT_LABEL = "Recipe"
 
-# Set up openai access by taking environment variables from .env.
-load_dotenv()
-
 HTML_TEMPLATE = """
 <div class="cleaned">
   <details>
