@@ -115,28 +115,27 @@ def terms_openai_fetch(
         prompt = template.render(n=n, examples=seeds + terms, description=query)
         if verbose:
             rich.print(Panel(prompt, title="Prompt to OpenAI"))
-        try:
-            resp = httpx.post(
-                "https://api.openai.com/v1/completions",
-                headers=headers,
-                json={
-                    "model": model,
-                    "prompt": [prompt],
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "top_p": top_p,
-                    "n": min(n_batch, best_of),
-                    "best_of": best_of
-                },
-                timeout=30,
-            )
-            choices = resp.json()['choices']
-        except KeyError:
-            msg.fail("Did not receive completions from OpenAI. Instead we received:")
+        resp = httpx.post(
+            "https://api.openai.com/v1/completions",
+            headers=headers,
+            json={
+                "model": model,
+                "prompt": [prompt],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "top_p": top_p,
+                "n": min(n_batch, best_of),
+                "best_of": best_of
+            },
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            msg.fail(f"Received status code {resp.status_code} from OpenAI. Details:")
             rich.print(resp.json())
             exit(code=1)
         
         # Cast to a set to make sure we remove duplicates
+        choices = resp.json()['choices']
         sets_of_terms = [set(_parse_terms(c['text'])) for c in choices]
         parsed_terms = list(reduce(lambda a,b: a.union(b), sets_of_terms))
 
@@ -154,6 +153,6 @@ def terms_openai_fetch(
             rich.print(Panel(Pretty(terms), title="Terms collected sofar."))
         if progress:
             rich.print(
-                f"Received {len(parsed_terms)} items, totalling {len(terms)} terms." 
+                f"Received {len(parsed_terms)} items, totalling {len(terms)} terms. " 
                 f"Progress at {round(len(terms)/n*100)}% after {round(time.time() - tic)}s."
             )
