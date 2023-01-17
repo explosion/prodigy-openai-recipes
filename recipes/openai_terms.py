@@ -114,11 +114,21 @@ def terms_openai_fetch(
         best_of = n_batch
     
     # Start collection of terms. If we resume we also fill seed terms with file contents.
-    terms = seeds
+    terms = []
     if resume:
         if output_path.exists():
             examples = srsly.read_jsonl(output_path)
             terms.extend([e["text"] for e in examples])
+    
+    # Mimic behavior from Prodigy terms recipe to ensure that seed terms also appear in output
+    for seed in seeds:
+        if seed not in terms:
+            srsly.write_jsonl(
+                output_path,
+                [{"text": seed, "meta": {"openai_query": query}}],
+                append=True,
+                append_new_line=False,
+            )
     
     headers = {
         "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
@@ -128,7 +138,7 @@ def terms_openai_fetch(
 
     # This recipe may overshoot the target, but we keep going until we have at least `n`
     while len(terms) < n:
-        prompt = template.render(n=n, examples=terms, description=query)
+        prompt = template.render(n=n, examples=seeds + terms, description=query)
         if verbose:
             rich.print(Panel(prompt, title="Prompt to OpenAI"))
 
