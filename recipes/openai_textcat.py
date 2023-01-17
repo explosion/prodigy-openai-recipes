@@ -197,8 +197,6 @@ class OpenAISuggester:
         stream = prodigy.components.preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
         for example in stream:
             example = copy.deepcopy(example)
-            # This tokenizes the text with spaCy, so that annotations on the Prodigy UI
-            # can automatically snap to token boundaries, making the process much more efficient.
             response = self._parse_response(example["openai"]["response"])
             example["answer"] = response["answer"] == "accept"
             example["meta"]["reason"] = response["reason"]
@@ -222,13 +220,7 @@ class OpenAISuggester:
     def _get_textcat_prompt(
         self, text: str, label: str, examples: List[PromptExample]
     ) -> str:
-        """Generate a prompt for text categorization.
-
-        If the length of the labels list is exactly 1, then it assumes
-        that the task is binary classification and it expects the prompt
-        template to be formatted as such. Else, it expects a multilabel
-        classification template.
-        """
+        """Generate a prompt for binary text categorization."""
         return self.prompt_template.render(text=text, label=label)
 
     def _get_textcat_response(self, prompts: List[str], delay: int = 0) -> List[str]:
@@ -288,7 +280,7 @@ class OpenAISuggester:
     examples_path=("Examples file to help define the task", "option", "e", Path),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     max_examples=("Max examples to include in prompt", "option", "n", int),
-    verbose=("Print extra information to terminal", "option", "flag", bool),
+    verbose=("Print extra information to terminal", "flag", "v", bool),
     # fmt: on
 )
 def textcat_openai_suggest(
@@ -375,7 +367,7 @@ def textcat_openai_suggest(
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
     segment=("Split sentences", "flag", "S", bool),
-    verbose=("Print extra information to terminal", "option", "flag", bool),
+    verbose=("Print extra information to terminal", "flag", "v", bool),
 )
 def textcat_openai_fetch(
     input_path: Path,
