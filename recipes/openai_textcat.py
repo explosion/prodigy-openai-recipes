@@ -3,7 +3,7 @@ import os
 import random
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
 
@@ -35,7 +35,7 @@ DEFAULT_PROMPT_PATH = (
 )
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
 
-TEXTCAT_LABEL = ["Recipe"]
+TEXTCAT_LABEL = "Recipe"
 
 HTML_TEMPLATE = """
 <div class="cleaned">
@@ -59,7 +59,7 @@ class PromptExample:
     """An example to be passed into an OpenAI TextCat prompt."""
 
     text: str
-    labels: list = field(default_factory=list)
+    labels: str
 
     @staticmethod
     def is_flagged(example: Dict) -> bool:
@@ -93,7 +93,7 @@ def _normalize_label(label: str) -> str:
 class OpenAISuggester:
     prompt_template: jinja2.Template
     model: str
-    labels: List[str]
+    label: str
     max_examples: int
     segment: bool
     verbose: bool
@@ -109,7 +109,7 @@ class OpenAISuggester:
         self,
         prompt_template: jinja2.Template,
         *,
-        labels: List[str],
+        label: str,
         max_examples: int,
         segment: bool,
         openai_api_org: str,
@@ -123,7 +123,7 @@ class OpenAISuggester:
     ):
         self.prompt_template = prompt_template
         self.model = openai_model
-        self.labels = [_normalize_label(label) for label in labels]
+        self.label = label
         self.max_examples = max_examples
         self.verbose = verbose
         self.segment = segment
@@ -154,7 +154,7 @@ class OpenAISuggester:
     def update(self, examples: Iterable[Dict]) -> float:
         for eg in examples:
             if PromptExample.is_flagged(eg):
-                self.add_example(PromptExample.from_prodigy(eg, self.labels))
+                self.add_example(PromptExample.from_prodigy(eg, self.label))
         return 0.0
 
     def add_example(self, example: PromptExample) -> None:
@@ -175,7 +175,7 @@ class OpenAISuggester:
         for batch in _batch_sequence(stream, batch_size):
             prompts = [
                 self._get_textcat_prompt(
-                    eg["text"], labels=self.labels, examples=self.examples
+                    eg["text"], label=self.label, examples=self.examples
                 )
                 for eg in batch
             ]
@@ -220,7 +220,7 @@ class OpenAISuggester:
             yield prodigy.util.set_hashes(eg)
 
     def _get_textcat_prompt(
-        self, text: str, labels: List[str], examples: List[PromptExample]
+        self, text: str, label: str, examples: List[PromptExample]
     ) -> str:
         """Generate a prompt for text categorization.
 
@@ -229,13 +229,7 @@ class OpenAISuggester:
         template to be formatted as such. Else, it expects a multilabel
         classification template.
         """
-        if len(labels) == 1:
-            # Mostly binary classification
-            prompt = self.prompt_template.render(text=text, label=labels[0])
-        else:
-            # Mostly multilabel textcat
-            prompt = self.prompt_template.render(text=text, labels=labels)
-        return prompt
+        return self.prompt_template.render(text=text, label=label)
 
     def _get_textcat_response(self, prompts: List[str], delay: int = 0) -> List[str]:
         headers = {
@@ -283,102 +277,9 @@ class OpenAISuggester:
 
 @prodigy.recipe(
     # fmt: off
-    "textcat.openai.teach",
-    input_path=("Path to jsonl data to annotate", "positional", None, Path),
-    spacy_model=("spaCy model to bootstrap active learning from", "positional", None, str),
-    labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
-    chatgpt_bias=("Control the probability of ChatGPT positive samples showing up", "option", "B", float),
-    model=("GPT-3 model to use for completion", "option", "m", str),
-    batch_size=("Batch size to send to OpenAI API", "option", "b", int),
-    segment=("Split sentences", "flag", "S", bool),
-    examples_path=("Examples file to help define the task", "option", "e", Path),
-    prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
-    max_examples=("Max examples to include in prompt", "option", "n", int),
-    verbose=("Print extra information to terminal", "option", "flag", bool),
-    # fmt: on
-)
-def textcat_openai_teach(
-    dataset: str,
-    input_path: Path,
-    spacy_model: str,
-    labels: List[str],
-    chatgpt_bias: float = 0.5,
-    model: str = "text-davinci-003",
-    batch_size: int = 10,
-    segment: bool = False,
-    examples_path: Optional[Path] = None,
-    prompt_path: Path = DEFAULT_PROMPT_PATH,
-    max_examples: int = 2,
-    verbose: bool = False,
-):
-    """Get bulk TextCat suggestions from an OpenAI API, using zero-shot or
-    few-shot learning.  The results can then be corrected using the
-    `textcat.manual` recipe.
-
-    Here, we use ChatGPT to suggest if a particular text talks about a recipe or
-    not. You can use the parameter `--chatgpt-bias` (float, 0 to 1 inclusive) to
-    set how much we prefer seeing examples that ChatGPT thinks as recipes.
-    """
-
-    api_key, api_org = _get_api_credentials(model)
-    examples = _read_prompt_examples(examples_path)
-    if labels is None:
-        msg.fail("textcat.teach requires at least one --label", exits=1)
-    nlp = spacy.load(spacy_model)
-    name = prodigy.models.textcat.add_text_classifier(nlp, labels)
-    nlp_model = prodigy.models.textcat.TextClassifier(
-        nlp=nlp, labels=labels, pipe_name=name
-    )
-    log(f"RECIPE: Creating TextClassifier with model {spacy_model}")
-
-    if segment:
-        nlp.add_pipe("sentencizer")
-
-    openai = OpenAISuggester(
-        openai_model=model,
-        labels=labels,
-        max_examples=max_examples,
-        prompt_template=_load_template(prompt_path),
-        verbose=verbose,
-        segment=segment,
-        openai_api_key=api_key,
-        openai_api_org=api_org,
-    )
-
-    for eg in examples:
-        openai.add_example(eg)
-
-    stream = list(srsly.read_jsonl(input_path))
-    stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
-
-    # Setup update loop
-    predict = nlp_model
-    stream = _prefer_gpt(predict(stream), chatgpt_bias)
-
-    return {
-        "dataset": dataset,
-        "view_id": "blocks",
-        "stream": stream,
-        "update": openai.update,
-        "config": {
-            "labels": openai.labels,
-            "batch_size": batch_size,
-            "exclude_by": "input",
-            "blocks": [
-                {"view_id": "classification"},
-                {"view_id": "html", "html_template": HTML_TEMPLATE},
-            ],
-            "show_flag": True,
-            "global_css": CSS_FILE_PATH.read_text(),
-        },
-    }
-
-
-@prodigy.recipe(
-    # fmt: off
     "textcat.openai.suggest",
     input_path=("Path to jsonl data to annotate", "positional", None, Path),
-    labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
+    label=("Label for binary classification", "positional", None, str),
     lang=("Language to initialize spaCy model", "option", "l", str),
     negative_bias=("Probability of negative examples to be included in the stream", "option", "B", float),
     model=("GPT-3 model to use for completion", "option", "m", str),
@@ -393,7 +294,7 @@ def textcat_openai_teach(
 def textcat_openai_suggest(
     dataset: str,
     input_path: Path,
-    labels: List[str],
+    label: str,
     lang: str = "en",
     negative_bias: float = 0.5,
     model: str = "text-davinci-003",
@@ -415,8 +316,8 @@ def textcat_openai_suggest(
 
     api_key, api_org = _get_api_credentials(model)
     examples = _read_prompt_examples(examples_path)
-    if labels is None:
-        msg.fail("textcat.teach requires at least one --label", exits=1)
+    if label is None:
+        msg.fail("textcat.teach requires a --label", exits=1)
     nlp = spacy.blank(lang)
 
     if segment:
@@ -424,7 +325,7 @@ def textcat_openai_suggest(
 
     openai = OpenAISuggester(
         openai_model=model,
-        labels=labels,
+        label=label,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
         verbose=verbose,
@@ -449,7 +350,7 @@ def textcat_openai_suggest(
         "stream": stream,
         "update": openai.update,
         "config": {
-            "labels": openai.labels,
+            "labels": [openai.label],
             "batch_size": batch_size,
             "exclude_by": "input",
             "blocks": [
@@ -466,7 +367,7 @@ def textcat_openai_suggest(
     "textcat.openai.fetch",
     input_path=("Path to jsonl data to annotate", "positional", None, Path),
     output_path=("Path to save the output", "positional", None, Path),
-    labels=("Labels (comma delimited)", "positional", None, lambda s: s.split(",")),
+    label=("Label for binary classification", "positional", None, str),
     lang=("Language to use for tokenizer.", "option", "l", str),
     model=("GPT-3 model to use for completion", "option", "m", str),
     examples_path=("Examples file to help define the task", "option", "e", Path),
@@ -479,7 +380,7 @@ def textcat_openai_suggest(
 def textcat_openai_fetch(
     input_path: Path,
     output_path: Path,
-    labels: List[str],
+    label: str,
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
@@ -498,7 +399,7 @@ def textcat_openai_fetch(
         nlp.add_pipe("sentencizer")
     openai = OpenAISuggester(
         openai_model=model,
-        labels=labels,
+        label=label,
         max_examples=max_examples,
         prompt_template=_load_template(prompt_path),
         verbose=verbose,
@@ -513,17 +414,6 @@ def textcat_openai_fetch(
     stream = list(srsly.read_jsonl(input_path))
     stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
     srsly.write_jsonl(output_path, stream)
-
-
-def _prefer_gpt(stream, bias: float) -> Iterable[Dict]:
-    log(f"SORTER: Resort stream to prefer positive classes (bias: {bias})")
-    sorted_stream = (
-        (prodigy.components.sorters.get_uncertainty(score, bias), eg)
-        if eg.get("answer")
-        else (prodigy.components.sorters.get_uncertainty(score, 1 - bias), eg)
-        for score, eg in stream
-    )
-    return prodigy.components.sorters.Probability(sorted_stream)
 
 
 def _get_api_credentials(model: str = None) -> Tuple[str, str]:
