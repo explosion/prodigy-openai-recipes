@@ -191,7 +191,7 @@ class OpenAISuggester:
     def format_suggestions(
         self, stream: Iterable[Dict], *, nlp: Language
     ) -> Iterable[Dict]:
-        """Parse the examples in the stream and set up span annotations
+        """Parse the examples in the stream and set up labels
         to display in the Prodigy UI.
         """
         stream = prodigy.components.preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
