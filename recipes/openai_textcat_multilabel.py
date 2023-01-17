@@ -202,7 +202,7 @@ class OpenAISuggester:
             example["options"] = [{"id": label, "text": label} for label in self.labels]
             example["meta"]["reason"] = response["reason"]
             example["answer"] = "accept"
-            example["accept"] = response["answer"].split(",")
+            example["accept"] = [s.strip() for s in response["answer"].split(",")]
 
             yield prodigy.util.set_hashes(example)
 
@@ -336,6 +336,7 @@ def textcat_multilabel_openai_correct(
             "labels": openai.labels,
             "batch_size": batch_size,
             "exclude_by": "input",
+            "choice_style": "single" if exclusive_classes else "multiple",
             "blocks": [
                 {"view_id": "choice"},
                 {"view_id": "html", "html_template": HTML_TEMPLATE},
