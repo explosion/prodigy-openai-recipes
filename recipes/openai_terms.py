@@ -2,7 +2,7 @@ import os
 import time
 from functools import reduce
 from pathlib import Path
-from typing import Callable, List
+from typing import Callable, Dict, List
 
 import httpx
 import jinja2
@@ -131,6 +131,13 @@ def terms_openai_fetch(
                 append=True,
                 append_new_line=False,
             )
+
+    # Ensure we have access to correct environment variables and construct headers
+    if not os.getenv("OPENAI_KEY"):
+        msg.fail("The `OPENAI_KEY` is missing from your `.env` file.", exits=1)
+
+    if not os.getenv("OPENAI_ORG"):
+        msg.fail("The `OPENAI_ORG` is missing from your `.env` file.", exits=1)
 
     headers = {
         "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
