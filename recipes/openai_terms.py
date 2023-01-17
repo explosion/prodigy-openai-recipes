@@ -1,8 +1,8 @@
 import os
 import time
-from pathlib import Path
-from typing import List, Callable
 from functools import reduce
+from pathlib import Path
+from typing import Callable, List
 
 import httpx
 import jinja2
@@ -67,6 +67,7 @@ def _retry429(
 
 
 @prodigy.recipe(
+    # fmt: off
     "terms.openai.fetch",
     query=("Query to send to OpenAI", "positional", None, str),
     output_path=("Path to save the output", "positional", None, Path),
@@ -82,6 +83,7 @@ def _retry429(
     best_of=("OpenAI best_of param", "option", "bo", int),
     n_batch=("OpenAI batch size param", "option", "nb", int),
     max_tokens=("Max tokens to generate per call", "option", "mt", int),
+    # fmt: on
 )
 def terms_openai_fetch(
     query: str,
@@ -112,14 +114,14 @@ def terms_openai_fetch(
     # The `best_of` param cannot be less than the amount we batch.
     if best_of < n_batch:
         best_of = n_batch
-    
+
     # Start collection of terms. If we resume we also fill seed terms with file contents.
     terms = []
     if resume:
         if output_path.exists():
             examples = srsly.read_jsonl(output_path)
             terms.extend([e["text"] for e in examples])
-    
+
     # Mimic behavior from Prodigy terms recipe to ensure that seed terms also appear in output
     for seed in seeds:
         if seed not in terms:
@@ -129,7 +131,7 @@ def terms_openai_fetch(
                 append=True,
                 append_new_line=False,
             )
-    
+
     headers = {
         "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
         "OpenAI-Organization": os.getenv("OPENAI_ORG"),
@@ -152,7 +154,7 @@ def terms_openai_fetch(
                 "max_tokens": max_tokens,
                 "top_p": top_p,
                 "n": min(n_batch, best_of),
-                "best_of": best_of
+                "best_of": best_of,
             },
             timeout=30,
         )
@@ -166,11 +168,11 @@ def terms_openai_fetch(
             msg.fail(f"Received status code {resp.status_code} from OpenAI. Details:")
             rich.print(resp.json())
             exit(code=1)
-        
+
         # Cast to a set to make sure we remove duplicates
-        choices = resp.json()['choices']
-        sets_of_terms = [set(_parse_terms(c['text'])) for c in choices]
-        parsed_terms = list(reduce(lambda a,b: a.union(b), sets_of_terms))
+        choices = resp.json()["choices"]
+        sets_of_terms = [set(_parse_terms(c["text"])) for c in choices]
+        parsed_terms = list(reduce(lambda a, b: a.union(b), sets_of_terms))
 
         # Save intermediate results into file, in-case of a hiccup
         srsly.write_jsonl(
@@ -186,6 +188,6 @@ def terms_openai_fetch(
             rich.print(Panel(Pretty(terms), title="Terms collected sofar."))
         if progress:
             rich.print(
-                f"Received {len(parsed_terms)} items, totalling {len(terms)} terms. " 
+                f"Received {len(parsed_terms)} items, totalling {len(terms)} terms. "
                 f"Progress at {round(len(terms)/n*100)}% after {round(time.time() - tic)}s."
             )
