@@ -232,12 +232,6 @@ When the recipe is done, you'll have a `tricks.jsonl` file that has contents tha
 ...
 ```
 
-### Known Limitations 
-
-OpenAI has a hard limit on the prompt size. You cannot have a prompt larger than 4079 tokens. Unfortunately
-that means that there is a limit to the size of term lists that you can generate. The recipe will report
-an error when this happens, but it's good to be aware of this.
-
 ### Towards Patterns 
 
 You now have a `tricks.jsonl` file on disk that contains skateboard tricks, but you cannot
@@ -250,19 +244,34 @@ with Prodigy for that.
 python -m prodigy textcat.manual skateboard-tricks-list tricks.jsonl --label skateboard-tricks
 ```
 
-You can manually accept of reject each example and when you're done annotating you can export
+This generates an interface that looks like this: 
+
+<img src="https://user-images.githubusercontent.com/1019791/212869305-58f1d087-e036-4eab-a818-df80aab68ce8.png" width="600" />
+
+You can manually accept or reject each example and when you're done annotating you can export
 the annnotated text into a patterns file via the [`terms.to-patterns`](https://prodi.gy/docs/recipes/#terms-to-patterns) recipe.
 
 ```bash
 # Generate a `patterns.jsonl` file.
-python -m prodigy terms.to-patterns skateboard-tricks-list patterns.jsonl --label boardgame --spacy-model blank:en
+python -m prodigy terms.to-patterns skateboard-tricks-list patterns.jsonl --label skateboard-tricks --spacy-model blank:en
 ```
 
 When the recipe is done, you'll have a `patterns.jsonl` file that has contents that look like this: 
 
 ```json
-
+{"label":"skateboard-tricks","pattern":[{"lower":"pop"},{"lower":"shove"},{"lower":"it"}]}
+{"label":"skateboard-tricks","pattern":[{"lower":"switch"},{"lower":"flip"}]}
+{"label":"skateboard-tricks","pattern":[{"lower":"nose"},{"lower":"slides"}]}
+{"label":"skateboard-tricks","pattern":[{"lower":"lazerflip"}]}
+{"label":"skateboard-tricks","pattern":[{"lower":"lipslide"}]} 
+...
 ```
+
+### Known Limitations 
+
+OpenAI has a hard limit on the prompt size. You cannot have a prompt larger than 4079 tokens. Unfortunately
+that means that there is a limit to the size of term lists that you can generate. The recipe will report
+an error when this happens, but it's good to be aware of this limitation.
 
 ## What's next?
 
