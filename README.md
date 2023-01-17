@@ -159,6 +159,111 @@ python ./scripts/train_hf_ner.py ./data/annotations/train.spacy ./data/annotatio
 
 The resulting model will be saved to the `hf-ner-model/` directory.
 
+## `terms.openai.fetch`: Fetch phrases and terms based on a query
+
+This recipe generates terms and phrases entity predictions obtained from a large language model. These
+terms can be curated and turned into patterns files, which can help with downstream annotation tasks. 
+
+```bash
+python -m prodigy terms.openai.fetch query filepath [--options] -F ./recipes/openai_terms.py
+```
+
+|        Argument       | Type  | Description                                         | Default                         |
+|:---------------------:|-------|-----------------------------------------------------|---------------------------------|
+| `query`               | str   | Query to send to OpenAI                             |                                 |
+| `output_path`         | Path  | Path to save the output                             |                                 |
+| `--seeds`,`-s`        | str   | One or more comma-seperated seed phrases.           | `""`                            |
+| `--n`,`-n`            | int   | Number of items to generate                         | `100`                           |
+| `--model`, `-m`       | str   | GPT-3 model to use for completion                   | `"text-davinci-003"`            |
+| `--prompt-path`, `-p` | Path  | Path to jinja2 prompt template                      | `templates/terms_prompt.jinja2` |
+| `--verbose`,`-v`      | bool  | Print extra information to terminal                 | `False`                         |
+| `--resume`, `-r`      | bool  | Resume by loading in text examples from output file | `False`                         |
+| `--progress`,`-pb`    | bool  | Print progress of the recipe.                       | `False`                         |
+| `--temperature`,`-t`  | float | OpenAI temperature param                            | `1.0`                           |
+| `--top-p`, `--tp`     | float | OpenAI top_p param                                  | `1.0`                           |
+| `--best-of`, `-bo`    | int   | OpenAI best_of param"                               | `10`                            |
+| `--n-batch`,`-nb`     | int   | OpenAI batch size param                             | `10`                            |
+| `--max-tokens`, `-mt` | int   | Max tokens to generate per call                     | `100`                           |
+
+### Example usage
+
+Suppose you're interested in detecting skateboard tricks in text, then you might want to start
+with a term list of known tricks. You might want to start with the following query:
+
+```bash
+# Base behavior, fetch at least 100 terms/phrases
+python -m prodigy terms.openai.fetch "skateboard tricks" tricks.jsonl --n 100 -F recipes/openai_terms.py
+```
+
+This will generate a prompt to OpenAI that asks to generate 100 examples of "skateboard tricks". You can
+choose to make the query more elaborate if you want to try to be more precise, but you can alternatively
+also choose to add some seed terms via `--seeds`. These will act as starting examples to help steer OpenAI 
+in the right direction.
+
+```bash
+# Base behavior but with seeds
+python -m prodigy terms.openai.fetch "skateboard tricks" tricks.jsonl --n 100 --seeds "kickflip,ollie" -F recipes/openai_terms.py
+```
+
+Collecting many examples can take a while, so it can be helpful to show the progress, via `--progress` 
+as requests are sent. 
+
+```bash
+# Adding progress output as we wait for 500 examples
+python -m prodigy terms.openai.fetch "skateboard tricks" tricks.jsonl --n 500 --progress --seeds "kickflip,ollie" -F recipes/openai_terms.py
+```
+
+After collecting a few examples, you might want to generate more. You can choose to continue from a
+previous output file. This will effectively re-use those examples as seeds for the prompt to OpenAI.
+
+```bash
+# Use the `--resume` flag to re-use previous examples
+python -m prodigy terms.openai.fetch "skateboard tricks" tricks.jsonl --n 50 --resume -F recipes/openai_terms.py
+```
+
+When the recipe is done, you'll have a `tricks.jsonl` file that has contents that look like this: 
+
+```json
+{"text":"pop shove it","meta":{"openai_query":"skateboard tricks"}}
+{"text":"switch flip","meta":{"openai_query":"skateboard tricks"}}
+{"text":"nose slides","meta":{"openai_query":"skateboard tricks"}}
+{"text":"lazerflip","meta":{"openai_query":"skateboard tricks"}}
+{"text":"lipslide","meta":{"openai_query":"skateboard tricks"}}
+...
+```
+
+### Known Limitations 
+
+OpenAI has a hard limit on the prompt size. You cannot have a prompt larger than 4079 tokens. Unfortunately
+that means that there is a limit to the size of term lists that you can generate. The recipe will report
+an error when this happens, but it's good to be aware of this.
+
+### Towards Patterns 
+
+You now have a `tricks.jsonl` file on disk that contains skateboard tricks, but you cannot
+assume that all of these will be accurate. The next step would be to review the terms and you
+can use the [`textcat.manual`](https://prodi.gy/docs/recipes/#textcat-manual) recipe that comes
+with Prodigy for that. 
+
+```bash
+# The tricks.jsonl was fetched from OpenAI beforehand
+python -m prodigy textcat.manual skateboard-tricks-list tricks.jsonl --label skateboard-tricks
+```
+
+You can manually accept of reject each example and when you're done annotating you can export
+the annnotated text into a patterns file via the [`terms.to-patterns`](https://prodi.gy/docs/recipes/#terms-to-patterns) recipe.
+
+```bash
+# Generate a `patterns.jsonl` file.
+python -m prodigy terms.to-patterns skateboard-tricks-list patterns.jsonl --label boardgame --spacy-model blank:en
+```
+
+When the recipe is done, you'll have a `patterns.jsonl` file that has contents that look like this: 
+
+```json
+
+```
+
 ## What's next?
 
 There’s lots of interesting follow-up experiments to this, and lots of ways to adapt the basic idea to different tasks or data sets. We’ll definitely follow up with a similar recipe for text categorization, but you can also adapt the recipe yourself in the meantime. We’re also interested to try out different prompts. It’s unclear how much the format the annotations are requested in might change the model’s predictions, or whether there’s a shorter prompt that might perform just as well. We also want to run some end-to-end experiments.

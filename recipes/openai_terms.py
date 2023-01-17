@@ -1,7 +1,7 @@
 import os
 import time
 from pathlib import Path
-from typing import List
+from typing import List, Callable
 from functools import reduce
 
 import httpx
@@ -50,22 +50,38 @@ def _parse_terms(completion: str) -> List[str]:
     return [item.replace("-", "").strip() for item in lines]
 
 
+def _retry429(
+    call_api: Callable[[], httpx.Response], n: int, timeout_s: int
+) -> httpx.Response:
+    """Retry a call to the OpenAI API if we get a 429: Too many requests
+    error.
+    """
+    assert n >= 0
+    assert timeout_s >= 1
+    r = call_api()
+    i = -1
+    while i < n and r.status_code == 429:
+        time.sleep(timeout_s)
+        i += 1
+    return r
+
+
 @prodigy.recipe(
     "terms.openai.fetch",
     query=("Query to send to OpenAI", "positional", None, str),
     output_path=("Path to save the output", "positional", None, Path),
-    seeds=("One of more comma-seperated seed phrases.","option","s",lambda d: d.split(",")),
+    seeds=("One or more comma-seperated seed phrases.","option","s",lambda d: d.split(",")),
     n=("Number of items to generate", "option", "n", int),
     model=("GPT-3 model to use for completion", "option", "m", str),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     verbose=("Print extra information to terminal", "flag", "v", bool),
     resume=("Resume by loading in text examples from output file.", "flag", "r", bool),
     progress=("Print progress of the recipe.", "flag", "pb", bool),
-    temperature=("OpenAI temperature param", "option", "mt", float),
+    temperature=("OpenAI temperature param", "option", "t", float),
     top_p=("OpenAI top_p param", "option", "tp", float),
-    best_of=("OpenAI best_of param", "option", "b", int),
-    n_batch=("Batch size to send to OpenAI", "option", "bs", int),
-    max_tokens=("Max tokens to generate", "option", "t", int),
+    best_of=("OpenAI best_of param", "option", "bo", int),
+    n_batch=("OpenAI batch size param", "option", "nb", int),
+    max_tokens=("Max tokens to generate per call", "option", "mt", int),
 )
 def terms_openai_fetch(
     query: str,
@@ -98,11 +114,11 @@ def terms_openai_fetch(
         best_of = n_batch
     
     # Start collection of terms. If we resume we also fill seed terms with file contents.
-    terms = []
+    terms = seeds
     if resume:
         if output_path.exists():
             examples = srsly.read_jsonl(output_path)
-            seeds.extend([e["text"] for e in examples])
+            terms.extend([e["text"] for e in examples])
     
     headers = {
         "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
@@ -112,10 +128,11 @@ def terms_openai_fetch(
 
     # This recipe may overshoot the target, but we keep going until we have at least `n`
     while len(terms) < n:
-        prompt = template.render(n=n, examples=seeds + terms, description=query)
+        prompt = template.render(n=n, examples=terms, description=query)
         if verbose:
             rich.print(Panel(prompt, title="Prompt to OpenAI"))
-        resp = httpx.post(
+
+        make_request = lambda: httpx.post(
             "https://api.openai.com/v1/completions",
             headers=headers,
             json={
@@ -129,6 +146,12 @@ def terms_openai_fetch(
             },
             timeout=30,
         )
+
+        # Catch 429: too many request errors
+        resp = _retry429(make_request, n=1, timeout_s=30)
+
+        # Report on any other error that might happen, the most typical use-case is
+        # catching the maximum context length of 4097 tokens when the prompt gets big.
         if resp.status_code != 200:
             msg.fail(f"Received status code {resp.status_code} from OpenAI. Details:")
             rich.print(resp.json())
