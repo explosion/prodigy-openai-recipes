@@ -1,8 +1,13 @@
-Classify the text below as one of the following: {%- for label in labels -%}{{label}}{%- endfor -%}
+Classify the text below given the following labels: {%- for label in labels -%}{{label}}{%- endfor -%}
+{% if exclusive %}
+The task is exclusive, so only choose one label from what I provided.
+{% else %}
+The task is non-exclusive, so you can provide more than one label as long as they're comma-delimited.
+{% endif %}
 {# whitespace #}
 Answer in the following format:
 {# whitespace #}
-answer: <string>
+answer: <comma delimited string if non-exclusive, a single string if exclusive>
 reason: <string>
 {# whitespace #}
 Text:
