@@ -310,7 +310,7 @@ def load_template(path: Path) -> jinja2.Template:
         )
     with path.open("r", encoding="utf8") as file_:
         text = file_.read()
-    return jinja2.Template(text)
+    return jinja2.Template(text, undefined=jinja2.DebugUndefined)
 
 
 def retry429(
