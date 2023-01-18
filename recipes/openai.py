@@ -133,8 +133,8 @@ class OpenAISuggester(abc.ABC):
 
     def pipe(self, stream: Iterable[Dict], nlp: Language, batch_size: int, **kwargs):
         """Process the stream and add suggestions from OpenAI."""
-        stream = self.format_suggestions(stream, nlp=nlp)
         stream = self.stream_suggestions(stream, batch_size)
+        stream = self.format_suggestions(stream, nlp=nlp)
         return stream
 
     def set_hashes(self, stream: Iterable[Dict]):
