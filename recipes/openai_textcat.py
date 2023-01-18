@@ -20,7 +20,7 @@ HTML_TEMPLATE = """
 <div class="cleaned">
   {{ #label }}
     <centering>
-    <h2>OpenAI ChatGPT says '{{ meta.answer }}'</h2>
+    <h2>OpenAI ChatGPT says: {{ meta.answer }}</h2>
     </centering>
   {{ /label }}
   <details>
@@ -65,8 +65,10 @@ class TextCatOpenAISuggester(OpenAISuggester):
         """Parse binary TextCat where the 'answer' key means it's a positive class."""
         output = self._parse_output(response)
         example["answer"] = output["answer"].lower() == "accept"
-        example["meta"]["answer"] = output["answer"].upper()
-        example["meta"]["reason"] = output["reason"]
+        example["meta"] = {
+            "answer": output["answer"].upper(),
+            "reason": output["reason"],
+        }
         example["label"] = self.labels[0]
         return example
 
