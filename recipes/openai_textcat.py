@@ -15,6 +15,11 @@ from recipes.openai import read_prompt_examples, normalize_label
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
 HTML_TEMPLATE = """
 <div class="cleaned">
+  {{ #label }}
+    <centering>
+    <h2>OpenAI ChatGPT says '{{ meta.answer }}'</h2>
+    </centering>
+  {{ /label }}
   <details>
     <summary>Show the prompt for OpenAI</summary>
     <pre>{{openai.prompt}}</pre>
@@ -52,6 +57,7 @@ class TextCatOpenAISuggester(OpenAISuggester):
         """Parse binary TextCat where the 'answer' key means it's a positive class."""
         output = self._parse_output(response)
         example["answer"] = output["answer"] == "accept"
+        example["meta"]["answer"] = output["answer"].upper()
         example["meta"]["reason"] = output["reason"]
         example["label"] = self.labels[0]
         return example
