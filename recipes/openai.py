@@ -50,10 +50,10 @@ class PromptExample:
 
         full_text = example["text"]
         label = example["label"]
-        return cls(text=full_text, label=_normalize_label(label))
+        return cls(text=full_text, label=normalize_label(label))
 
 
-def _normalize_label(label: str) -> str:
+def normalize_label(label: str) -> str:
     return label.lower()
 
 

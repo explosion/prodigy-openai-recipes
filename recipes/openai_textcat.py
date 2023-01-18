@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from prodigy.util import msg
 
 from recipes.openai import OpenAISuggester, get_api_credentials, load_template
-from recipes.openai import read_prompt_examples
+from recipes.openai import read_prompt_examples, normalize_label
 
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
 HTML_TEMPLATE = """
@@ -62,7 +62,9 @@ class TextCatOpenAISuggester(OpenAISuggester):
         example["options"] = [{"id": label, "text": label} for label in self.labels]
         example["meta"]["reason"] = output["reason"]
         example["answer"] = "accept"
-        example["accept"] = [s.strip() for s in output["answer"].split(",")]
+        example["accept"] = [
+            normalize_label(s.strip()) for s in output["answer"].split(",")
+        ]
         return example
 
 
