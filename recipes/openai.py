@@ -120,22 +120,31 @@ class OpenAISuggester(abc.ABC):
         if self.segment:
             stream = prodigy.components.preprocess.split_sentences(nlp, stream)
 
-        stream = self.pipe(stream, batch_size, **kwargs)
+        stream = self.pipe(stream, nlp, batch_size, **kwargs)
+        stream = self.set_hashes(stream)
         return stream
 
     @abc.abstractmethod
-    def pipe(self, stream: Iterable[Dict], batch_size: int, **kwargs):
-        """Process the stream and add suggestions from OpenAI."""
-        pass
+    def parse_response(self, text: str) -> Dict:
+        """Interpret OpenAI's response into a Prodigy-compatible format.
 
-    @abc.abstractmethod
-    def parse_response(self, text: str) -> Dict[str, str]:
-        """Interpret OpenAI's response.
+        OpenAI's response is formatted line by line, and this needs to be parsed
+        into one of Prodigy's annotation interfaces (https://prodi.gy/docs/api-interfaces).
 
         There's no guarantee that the model will give us well-formed output. It
         could say anything, it's an LM.  So we need to be robust.
         """
         pass
+
+    def pipe(self, stream: Iterable[Dict], nlp: Language, batch_size: int, **kwargs):
+        """Process the stream and add suggestions from OpenAI."""
+        stream = self.format_suggestions(stream, nlp=nlp)
+        stream = self.stream_suggestions(stream, batch_size)
+        return stream
+
+    def set_hashes(self, stream: Iterable[Dict]):
+        for example in stream:
+            yield prodigy.util.set_hashes(example)
 
     def update(self, examples: Iterable[Dict]) -> float:
         """Update the examples that will be used in the prompt based on user flags."""
@@ -150,6 +159,20 @@ class OpenAISuggester(abc.ABC):
             self.examples.append(example)
         if len(self.examples) >= self.max_examples:
             self.examples = self.examples[-self.max_examples :]
+
+    def format_suggestions(
+        self, stream: Iterable[Dict], *, nlp: Language
+    ) -> Iterable[Dict]:
+        """Parse the examples in the stream and set up labels
+        to display in the Prodigy UI.
+        """
+        stream = prodigy.components.preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
+        for example in stream:
+            example = copy.deepcopy(example)
+            if "meta" not in example:
+                example["meta"] = {}
+            example = self.parse_response(example["openai"]["response"])
+            yield example
 
     def stream_suggestions(
         self, stream: Iterable[Dict], batch_size: int
@@ -173,36 +196,18 @@ class OpenAISuggester(abc.ABC):
                     rich.print(Panel(response, title="Response from OpenAI"))
                 yield eg
 
-    def format_suggestions(
-        self, stream: Iterable[Dict], *, nlp: Language
-    ) -> Iterable[Dict]:
-        """Parse the examples in the stream and set up labels
-        to display in the Prodigy UI.
-        """
-        stream = prodigy.components.preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
-        for example in stream:
-            example = copy.deepcopy(example)
-            if "meta" not in example:
-                example["meta"] = {}
-            response = self._parse_response(example["openai"]["response"])
-            example["answer"] = response["answer"] == "accept"
-            example["meta"]["reason"] = response["reason"]
-            example["label"] = self.label
-            yield example
-
     def _get_prompt(
         self, text: str, labels: List[str], examples: List[PromptExample]
     ) -> str:
         """Generate a prompt for ChatGPT OpenAI."""
         return self.prompt_template.render(text=text, labels=labels, examples=examples)
 
-    def _get_openai_response(self, prompts: List[str], delay: int = 0) -> List[str]:
+    def _get_openai_response(self, prompts: List[str]) -> List[str]:
         headers = {
             "Authorization": f"Bearer {self.openai_api_key}",
             "OpenAI-Organization": self.openai_api_org,
             "Content-Type": "application/json",
         }
-        time.sleep(delay)
         r = retry429(
             lambda: httpx.post(
                 "https://api.openai.com/v1/completions",
