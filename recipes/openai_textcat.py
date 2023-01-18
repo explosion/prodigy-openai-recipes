@@ -304,9 +304,9 @@ def textcat_openai_suggest(
     few-shot learning.  The results can then be corrected using the
     `textcat.manual` recipe.
 
-    Here, we use ChatGPT to suggest if a particular text talks about a recipe or
-    not. You can use the parameter `--chatgpt-bias` (float, 0 to 1 inclusive) to
-    set how much we prefer seeing examples that ChatGPT thinks as recipes.
+    Here, we use ChatGPT to suggest if a particular text talks about a label or
+    not. You can use the parameter `--negative-bias` (float, 0 to 1 inclusive) to
+    set how much we prefer seeing examples that ChatGPT thinks as that label.
     """
 
     api_key, api_org = _get_api_credentials(model)
