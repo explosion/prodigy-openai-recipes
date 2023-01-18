@@ -169,3 +169,76 @@ def textcat_openai_correct(
             "global_css": CSS_FILE_PATH.read_text(),
         },
     }
+
+
+@prodigy.recipe(
+    "textcat.openai.fetch",
+    input_path=("Path to jsonl data to annotate", "positional", None, Path),
+    prompt_path=("Path to jinja2 prompt template", "positional", None, Path),
+    output_path=("Path to save the output", "positional", None, Path),
+    labels=("Labels (comma delimited)", "option", "L", lambda s: s.split(",")),
+    lang=("Language to use for tokenizer.", "option", "l", str),
+    model=("GPT-3 model to use for completion", "option", "m", str),
+    examples_path=("Examples file to help define the task", "option", "e", Path),
+    max_examples=("Max examples to include in prompt", "option", "n", int),
+    batch_size=("Batch size to send to OpenAI API", "option", "b", int),
+    segment=("Split sentences", "flag", "S", bool),
+    verbose=("Print extra information to terminal", "flag", "v", bool),
+)
+def textcat_openai_fetch(
+    input_path: Path,
+    prompt_path: Path,
+    output_path: Path,
+    labels: List[str] = None,
+    lang: str = "en",
+    model: str = "text-davinci-003",
+    batch_size: int = 10,
+    segment: bool = False,
+    examples_path: Optional[Path] = None,
+    max_examples: int = 2,
+    exclusive_classes: bool = False,
+    verbose: bool = False,
+):
+    api_key, api_org = get_api_credentials(model)
+    examples = read_prompt_examples(examples_path)
+    if labels is None:
+        msg.fail("textcat.teach requires at least one --label", exits=1)
+    nlp = spacy.blank(lang)
+
+    if segment:
+        nlp.add_pipe("sentencizer")
+
+    # Create partial render of the template
+    if not exclusive_classes and len(labels) == 1:
+        msg.warn(
+            "Binary classification should always be exclusive. Setting "
+            "`exclusive_classes` parameter to True"
+        )
+        exclusive_classes = True
+
+    template = Template(
+        load_template(prompt_path).render(
+            exclusive_classes=exclusive_classes, labels=labels
+        )
+    )
+
+    # Create OpenAISuggester with ChatGPT parameters
+    openai = TextCatOpenAISuggester(
+        prompt_template=template,
+        labels=labels,
+        max_examples=max_examples,
+        segment=segment,
+        openai_api_org=api_org,
+        openai_api_key=api_key,
+        openai_model=model,
+        openai_timeout_s=10,
+        openai_n=10,
+        verbose=verbose,
+    )
+    for eg in examples:
+        openai.add_example(eg)
+
+    # Set up the stream
+    stream = list(srsly.read_jsonl(input_path))
+    stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
+    srsly.write_jsonl(output_path, stream)
