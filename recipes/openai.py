@@ -155,22 +155,6 @@ class OpenAISuggester(abc.ABC):
         if len(self.examples) >= self.max_examples:
             self.examples = self.examples[-self.max_examples :]
 
-    def format_suggestions(
-        self, stream: Iterable[Dict], *, nlp: Language
-    ) -> Iterable[Dict]:
-        """Parse the examples in the stream and set up labels
-        to display in the Prodigy UI.
-        """
-        stream = prodigy.components.preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
-        for example in stream:
-            example = copy.deepcopy(example)
-            if "meta" not in example:
-                example["meta"] = {}
-
-            response = example["openai"].get("response", "")
-            example = self.parse_response(example=example, response=response)
-            yield example
-
     def stream_suggestions(
         self, stream: Iterable[Dict], batch_size: int
     ) -> Iterable[Dict]:
@@ -192,6 +176,22 @@ class OpenAISuggester(abc.ABC):
                 if self.verbose:
                     rich.print(Panel(response, title="Response from OpenAI"))
                 yield eg
+
+    def format_suggestions(
+        self, stream: Iterable[Dict], *, nlp: Language
+    ) -> Iterable[Dict]:
+        """Parse the examples in the stream and set up labels
+        to display in the Prodigy UI.
+        """
+        stream = prodigy.components.preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
+        for example in stream:
+            example = copy.deepcopy(example)
+            if "meta" not in example:
+                example["meta"] = {}
+
+            response = example["openai"].get("response", "")
+            example = self.parse_response(example=example, response=response)
+            yield example
 
     def _get_prompt(
         self, text: str, labels: List[str], examples: List[PromptExample]
