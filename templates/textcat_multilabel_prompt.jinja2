@@ -1,5 +1,5 @@
-Classify the text below given the following labels: {%- for label in labels -%}{{label}}{%- endfor -%}
-{% if exclusive %}
+Classify the text below given the following labels: {{ labels|join(", ") }}
+{% if exclusive_classes %}
 The task is exclusive, so only choose one label from what I provided.
 {% else %}
 The task is non-exclusive, so you can provide more than one label as long as they're comma-delimited.
