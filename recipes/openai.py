@@ -21,11 +21,8 @@ _ItemT = TypeVar("_ItemT")
 
 
 @dataclass
-class PromptExample:
-    """An example to be passed into an OpenAI TextCat prompt."""
-
-    text: str
-    labels: str
+class PromptExample(abc.ABC):
+    """An example to be passed into an OpenAI prompt."""
 
     @staticmethod
     def is_flagged(example: Dict) -> bool:
@@ -38,19 +35,10 @@ class PromptExample:
             and "text" in example
         )
 
-    @classmethod
+    @abc.abstractclassmethod
     def from_prodigy(cls, example: Dict, labels: Iterable[str]) -> "PromptExample":
-        """Create a prompt example from Prodigy's format.
-
-        Only entities with a label from the given set will be retained.
-        The given set of labels is assumed to be already normalized.
-        """
-        if "text" not in example:
-            raise ValueError("Cannot make PromptExample without text")
-
-        full_text = example["text"]
-        label = example["label"]
-        return cls(text=full_text, label=normalize_label(label))
+        """Create a prompt example from Prodigy's format."""
+        pass
 
 
 def normalize_label(label: str) -> str:
@@ -92,7 +80,7 @@ class OpenAISuggester(abc.ABC):
     ):
         self.prompt_template = prompt_template
         self.model = openai_model
-        self.labels = labels
+        self.labels = [normalize_label(label) for label in labels]
         self.max_examples = max_examples
         self.verbose = verbose
         self.segment = segment
@@ -120,7 +108,7 @@ class OpenAISuggester(abc.ABC):
         return stream
 
     @abc.abstractmethod
-    def parse_response(self, example: Dict, response: str) -> Dict:
+    def parse_response(self, example: Dict, response: str, nlp: Language) -> Dict:
         """Interpret OpenAI's response into a Prodigy-compatible format.
 
         OpenAI's response is formatted line by line, and this needs to be parsed
@@ -190,7 +178,7 @@ class OpenAISuggester(abc.ABC):
                 example["meta"] = {}
 
             response = example["openai"].get("response", "")
-            example = self.parse_response(example=example, response=response)
+            example = self.parse_response(example=example, response=response, nlp=nlp)
             yield example
 
     def _get_prompt(
@@ -283,11 +271,13 @@ def get_api_credentials(model: str = None) -> Tuple[str, str]:
     return api_key, org
 
 
-def read_prompt_examples(path: Optional[Path]) -> List[PromptExample]:
+def read_prompt_examples(
+    path: Optional[Path], *, example_class: PromptExample
+) -> List[PromptExample]:
     if path is None:
         return []
     elif path.suffix in (".yml", ".yaml"):
-        return read_yaml_examples(path)
+        return read_yaml_examples(path, example_class=example_class)
     elif path.suffix == ".json":
         data = srsly.read_json(path)
         assert isinstance(data, list)
@@ -329,14 +319,14 @@ def retry429(
     return r
 
 
-def read_yaml_examples(path: Path) -> List[PromptExample]:
+def read_yaml_examples(
+    path: Path, *, example_class: PromptExample
+) -> List[PromptExample]:
     data = srsly.read_yaml(path)
     if not isinstance(data, list):
         msg.fail("Cannot interpret prompt examples from yaml", exits=True)
     assert isinstance(data, list)
-    output = []
-    for item in data:
-        output.append(PromptExample(text=item["text"], entities=item["entities"]))
+    output = [example_class(**eg) for eg in data]
     return output
 
 
