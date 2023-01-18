@@ -1,8 +1,20 @@
-From the text below, determine whether or not it contains a {{label}}. If it is
-a {{label}}, answer "accept." If it is not a {{label}}, answer "reject."
+{% if labels|length == 1 %}
+    {% set label = labels[0] %}
+    From the text below, determine whether or not it contains a {{ label }}. If it is
+    a {{ label }}, answer "accept." If it is not a {{ label }}, answer "reject."
+{% else %}
+    Classify the text below given the following labels: {{ labels|join(", ") }}
+    {% if exclusive_classes %}
+    The task is exclusive, so only choose one label from what I provided.
+    {% else %}
+    The task is non-exclusive, so you can provide more than one label as long as
+    they're comma-delimited. For example: Label1, Label2, Label3.
+    {% endif %}
+{% endif %}
+{# whitespace #}
 Answer in the following format:
 {# whitespace #}
-answer: <accept or reject>
+answer: <string>
 reason: <string>
 {# whitespace #}
 Text:
