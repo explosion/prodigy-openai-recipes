@@ -1,16 +1,16 @@
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 
 import prodigy
 import spacy
 import srsly
 import tqdm
-from jinja2 import Template
 from dotenv import load_dotenv
+from jinja2 import Template
 from prodigy.util import msg
 
 from recipes.openai import OpenAISuggester, get_api_credentials, load_template
-from recipes.openai import read_prompt_examples, normalize_label
+from recipes.openai import normalize_label, read_prompt_examples
 
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
 HTML_TEMPLATE = """
@@ -172,6 +172,7 @@ def textcat_openai_correct(
 
 
 @prodigy.recipe(
+    # fmt: off
     "textcat.openai.fetch",
     input_path=("Path to jsonl data to annotate", "positional", None, Path),
     prompt_path=("Path to jinja2 prompt template", "positional", None, Path),
@@ -184,6 +185,7 @@ def textcat_openai_correct(
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
     segment=("Split sentences", "flag", "S", bool),
     verbose=("Print extra information to terminal", "flag", "v", bool),
+    # fmt: on
 )
 def textcat_openai_fetch(
     input_path: Path,
