@@ -68,9 +68,12 @@ class TextCatOpenAISuggester(OpenAISuggester):
         example["options"] = [{"id": label, "text": label} for label in self.labels]
         example["meta"]["reason"] = output["reason"]
         example["answer"] = "accept"
-        example["accept"] = [
-            normalize_label(s.strip()) for s in output["answer"].split(",")
-        ]
+        # Filter removes any empty strings
+        example["accept"] = list(
+            filter(
+                None, [normalize_label(s.strip()) for s in output["answer"].split(",")]
+            )
+        )
         return example
 
 
