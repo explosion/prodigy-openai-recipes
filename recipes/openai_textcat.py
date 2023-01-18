@@ -5,6 +5,7 @@ import prodigy
 import spacy
 import srsly
 import tqdm
+from jinja2 import Template
 from dotenv import load_dotenv
 from prodigy.util import msg
 
@@ -105,9 +106,16 @@ def textcat_openai_correct(
     if segment:
         nlp.add_pipe("sentencizer")
 
+    # Create partial render of the template
+    template = Template(
+        load_template(prompt_path).render(
+            exclusive_classes=exclusive_classes, labels=labels
+        )
+    )
+
     # Create OpenAISuggester with ChatGPT parameters
     openai = TextCatOpenAISuggester(
-        prompt_template=load_template(prompt_path),
+        prompt_template=template,
         labels=labels,
         max_examples=max_examples,
         segment=segment,
