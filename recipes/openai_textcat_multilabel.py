@@ -25,9 +25,6 @@ from prodigy.util import log, msg
 from rich.panel import Panel
 from spacy.language import Language
 
-timeout = httpx.Timeout(120.0, connect=60.0)
-client = httpx.Client(timeout=timeout)
-
 _ItemT = TypeVar("_ItemT")
 
 DEFAULT_PROMPT_PATH = (
@@ -225,7 +222,7 @@ class OpenAISuggester:
         }
         time.sleep(delay)
         r = _retry429(
-            lambda: client.post(
+            lambda: httpx.post(
                 "https://api.openai.com/v1/completions",
                 headers=headers,
                 json={
