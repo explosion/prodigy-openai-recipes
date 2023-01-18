@@ -13,6 +13,9 @@ from recipes.openai import OpenAISuggester, get_api_credentials, load_template
 from recipes.openai import normalize_label, read_prompt_examples
 
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
+DEFAULT_PROMPT_PATH = (
+    Path(__file__).parent.parent / "templates" / "textcat_prompt.jinja2"
+)
 HTML_TEMPLATE = """
 <div class="cleaned">
   {{ #label }}
@@ -37,6 +40,11 @@ load_dotenv()  # take environment variables from .env.
 
 class TextCatOpenAISuggester(OpenAISuggester):
     def parse_response(self, example: Dict, response: str) -> Dict:
+
+        # Add meta to display OpenAI 'reason'
+        if "meta" not in example:
+            example["meta"] = {}
+
         example = (
             self._parse_binary(example, response)
             if len(self.labels) == 1
@@ -56,7 +64,7 @@ class TextCatOpenAISuggester(OpenAISuggester):
     def _parse_binary(self, example: Dict, response: str) -> Dict:
         """Parse binary TextCat where the 'answer' key means it's a positive class."""
         output = self._parse_output(response)
-        example["answer"] = output["answer"] == "accept"
+        example["answer"] = output["answer"].lower() == "accept"
         example["meta"]["answer"] = output["answer"].upper()
         example["meta"]["reason"] = output["reason"]
         example["label"] = self.labels[0]
