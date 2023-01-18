@@ -144,7 +144,7 @@ def textcat_openai_correct(
     verbose: bool = False,
 ):
     api_key, api_org = get_api_credentials(model)
-    examples = read_prompt_examples(examples_path)
+    examples = read_prompt_examples(examples_path, example_class=TextCatPromptExample)
     if labels is None:
         msg.fail("textcat.teach requires at least one --label", exits=1)
     nlp = spacy.blank(lang)
@@ -239,7 +239,7 @@ def textcat_openai_fetch(
     verbose: bool = False,
 ):
     api_key, api_org = get_api_credentials(model)
-    examples = read_prompt_examples(examples_path)
+    examples = read_prompt_examples(examples_path, example_class=TextCatPromptExample)
     if labels is None:
         msg.fail("textcat.teach requires at least one --label", exits=1)
     nlp = spacy.blank(lang)
@@ -257,7 +257,8 @@ def textcat_openai_fetch(
 
     template = Template(
         load_template(prompt_path).render(
-            exclusive_classes=exclusive_classes, labels=labels
+            exclusive_classes=exclusive_classes,
+            labels=labels,
         )
     )
 

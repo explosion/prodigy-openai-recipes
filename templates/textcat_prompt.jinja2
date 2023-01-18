@@ -21,3 +21,18 @@ Text:
 """
 {{text}}
 """
+{# whitespace #}
+{% if examples|length == 1 %}
+For example:
+{# whitespace #}
+{# whitespace #}
+{% for example in examples %}
+Text:
+"""
+{{ example.text }}
+"""
+{# whitespace #}
+answer: {{ example.answer }}
+reason: {{ example.reason }}
+{% endfor %}
+{% endif %}
