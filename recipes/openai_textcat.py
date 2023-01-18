@@ -9,8 +9,8 @@ from jinja2 import Template
 from dotenv import load_dotenv
 from prodigy.util import msg
 
-from .openai import OpenAISuggester, get_api_credentials, load_template
-from .openai import read_prompt_examples
+from recipes.openai import OpenAISuggester, get_api_credentials, load_template
+from recipes.openai import read_prompt_examples
 
 DEFAULT_LABELS = ["PER", "ORG", "LOC"]
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
