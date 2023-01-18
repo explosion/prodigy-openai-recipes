@@ -12,7 +12,6 @@ from prodigy.util import msg
 from recipes.openai import OpenAISuggester, get_api_credentials, load_template
 from recipes.openai import read_prompt_examples
 
-DEFAULT_LABELS = ["PER", "ORG", "LOC"]
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
 HTML_TEMPLATE = """
 <div class="cleaned">
@@ -87,7 +86,7 @@ def textcat_openai_correct(
     dataset: str,
     input_path: Path,
     prompt_path: Path,
-    labels: List[str] = DEFAULT_LABELS,
+    labels: List[str] = None,
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
@@ -126,8 +125,8 @@ def textcat_openai_correct(
         labels=labels,
         max_examples=max_examples,
         segment=segment,
-        open_api_org=api_org,
-        open_api_key=api_key,
+        openai_api_org=api_org,
+        openai_api_key=api_key,
         openai_model=model,
         openai_timeout_s=10,
         openai_n=10,
@@ -147,7 +146,7 @@ def textcat_openai_correct(
         "stream": stream,
         "update": openai.update,
         "config": {
-            "labels": openai.labels[0] if len(labels) == 1 else openai.labels,
+            "labels": openai.labels,
             "batch_size": batch_size,
             "exclude_by": "input",
             "choice_style": "single" if exclusive_classes else "multiple",
