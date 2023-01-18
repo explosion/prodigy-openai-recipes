@@ -192,6 +192,7 @@ def textcat_openai_correct(
     max_examples=("Max examples to include in prompt", "option", "n", int),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
     segment=("Split sentences", "flag", "S", bool),
+    exclusive_classes=("Make the classification task exclusive", "flag", "E", bool),
     verbose=("Print extra information to terminal", "flag", "v", bool),
     # fmt: on
 )
