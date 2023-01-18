@@ -2,6 +2,8 @@ import pytest
 from typing import List
 from pathlib import Path
 
+import spacy
+
 from recipes.openai_textcat import TextCatOpenAISuggester, DEFAULT_PROMPT_PATH
 from recipes.openai import get_api_credentials, load_template, OpenAISuggester
 
@@ -49,7 +51,8 @@ def test_parse_response_binary(response, answer):
     suggester = make_suggester(
         TextCatOpenAISuggester, prompt_path=DEFAULT_PROMPT_PATH, labels=labels
     )
-    example = suggester.parse_response(example={}, response=response)
+    nlp = spacy.blank("en")
+    example = suggester.parse_response(example={}, response=response, nlp=nlp)
     assert example.get("answer") == answer
 
 
@@ -72,5 +75,6 @@ def test_parser_response_multi(response, answer):
     suggester = make_suggester(
         TextCatOpenAISuggester, prompt_path=DEFAULT_PROMPT_PATH, labels=labels
     )
-    example = suggester.parse_response(example={}, response=response)
+    nlp = spacy.blank("en")
+    example = suggester.parse_response(example={}, response=response, nlp=nlp)
     assert set(example.get("accept")) == set(answer)
