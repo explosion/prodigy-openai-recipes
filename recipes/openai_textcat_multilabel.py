@@ -361,6 +361,7 @@ def textcat_multilabel_openai_correct(
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
     segment=("Split sentences", "flag", "S", bool),
+    exclusive_classes=("Make the classification task exclusive", "flag", "E", bool),
     verbose=("Print extra information to terminal", "option", "flag", bool),
 )
 def textcat_multilabel_openai_fetch(
@@ -374,6 +375,7 @@ def textcat_multilabel_openai_fetch(
     examples_path: Optional[Path] = None,
     prompt_path: Path = DEFAULT_PROMPT_PATH,
     max_examples: int = 2,
+    exclusive_classes: bool = False,
     verbose: bool = False,
 ):
     """Get bulk TextCat suggestions from an OpenAI API, using zero-shot or few-shot learning.
@@ -390,6 +392,7 @@ def textcat_multilabel_openai_fetch(
         prompt_template=_load_template(prompt_path),
         verbose=verbose,
         segment=segment,
+        exclusive_classes=exclusive_classes,
         openai_api_key=api_key,
         openai_api_org=api_org,
         openai_timeout_s=120,
