@@ -197,6 +197,8 @@ class OpenAISuggester:
         stream = prodigy.components.preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
         for example in stream:
             example = copy.deepcopy(example)
+            if "meta" not in example:
+                example["meta"] = {}
             response = self._parse_response(example["openai"]["response"])
             example["answer"] = response["answer"] == "accept"
             example["meta"]["reason"] = response["reason"]
