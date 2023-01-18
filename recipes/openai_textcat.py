@@ -107,6 +107,13 @@ def textcat_openai_correct(
         nlp.add_pipe("sentencizer")
 
     # Create partial render of the template
+    if not exclusive_classes and len(labels) == 1:
+        msg.warn(
+            "Binary classification should always be exclusive. Setting "
+            "`exclusive_classes` parameter to True"
+        )
+        exclusive_classes = True
+
     template = Template(
         load_template(prompt_path).render(
             exclusive_classes=exclusive_classes, labels=labels
@@ -134,13 +141,6 @@ def textcat_openai_correct(
     stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
 
     # Set up the Prodigy UI
-    if not exclusive_classes and len(labels) == 1:
-        msg.warn(
-            "Binary classification should always be exclusive. Setting "
-            "`exclusive_classes` parameter to True"
-        )
-        exclusive_classes = True
-
     return {
         "dataset": dataset,
         "view_id": "blocks",
