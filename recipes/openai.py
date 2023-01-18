@@ -10,15 +10,10 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
 import httpx
 import jinja2
 import prodigy
-import prodigy.components.db
-import prodigy.components.preprocess
-import prodigy.components.sorters
-import prodigy.models.textcat
-import prodigy.types
-import prodigy.util
 import rich
 import srsly
-from prodigy.util import msg
+from prodigy.components import preprocess
+from prodigy.util import msg, set_hashes
 from rich.panel import Panel
 from spacy.language import Language
 
@@ -67,7 +62,7 @@ class OpenAISuggester(abc.ABC):
 
     prompt_template: jinja2.Template
     model: str
-    label: str
+    labels: List[str]
     max_examples: int
     segment: bool
     verbose: bool
@@ -83,7 +78,7 @@ class OpenAISuggester(abc.ABC):
         self,
         prompt_template: jinja2.Template,
         *,
-        label: str,
+        labels: List[str],
         max_examples: int,
         segment: bool,
         openai_api_org: str,
@@ -97,7 +92,7 @@ class OpenAISuggester(abc.ABC):
     ):
         self.prompt_template = prompt_template
         self.model = openai_model
-        self.label = label
+        self.labels = labels
         self.max_examples = max_examples
         self.verbose = verbose
         self.segment = segment
@@ -118,14 +113,14 @@ class OpenAISuggester(abc.ABC):
         **kwargs,
     ) -> Iterable[Dict]:
         if self.segment:
-            stream = prodigy.components.preprocess.split_sentences(nlp, stream)
+            stream = preprocess.split_sentences(nlp, stream)
 
         stream = self.pipe(stream, nlp, batch_size, **kwargs)
         stream = self.set_hashes(stream)
         return stream
 
     @abc.abstractmethod
-    def parse_response(self, text: str) -> Dict:
+    def parse_response(self, example: Dict, response: str) -> Dict:
         """Interpret OpenAI's response into a Prodigy-compatible format.
 
         OpenAI's response is formatted line by line, and this needs to be parsed
@@ -144,7 +139,7 @@ class OpenAISuggester(abc.ABC):
 
     def set_hashes(self, stream: Iterable[Dict]):
         for example in stream:
-            yield prodigy.util.set_hashes(example)
+            yield set_hashes(example)
 
     def update(self, examples: Iterable[Dict]) -> float:
         """Update the examples that will be used in the prompt based on user flags."""
@@ -171,7 +166,9 @@ class OpenAISuggester(abc.ABC):
             example = copy.deepcopy(example)
             if "meta" not in example:
                 example["meta"] = {}
-            example = self.parse_response(example["openai"]["response"])
+
+            response = example["openai"].get("response", "")
+            example = self.parse_response(example=example, response=response)
             yield example
 
     def stream_suggestions(
@@ -184,10 +181,10 @@ class OpenAISuggester(abc.ABC):
         """
         for batch in batch_sequence(stream, batch_size):
             prompts = [
-                self._get_prompt(eg["text"], label=self.label, examples=self.examples)
+                self._get_prompt(eg["text"], labels=self.labels, examples=self.examples)
                 for eg in batch
             ]
-            responses = self._get_openai_response(prompts, delay=0)
+            responses = self._get_openai_response(prompts)
             for eg, prompt, response in zip(batch, prompts, responses):
                 if self.verbose:
                     rich.print(Panel(prompt, title="Prompt to OpenAI"))
