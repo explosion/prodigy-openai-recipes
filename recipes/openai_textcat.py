@@ -202,6 +202,7 @@ class OpenAISuggester:
             response = self._parse_response(example["openai"]["response"])
             example["answer"] = response["answer"] == "accept"
             example["meta"]["reason"] = response["reason"]
+            example["label"] = self.label
             yield example
 
     def filter_suggestions(
