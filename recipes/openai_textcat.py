@@ -1,5 +1,6 @@
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Iterable
+from dataclasses import dataclass
 
 import prodigy
 import spacy
@@ -8,9 +9,11 @@ import tqdm
 from dotenv import load_dotenv
 from jinja2 import Template
 from prodigy.util import msg
+from spacy.language import Language
 
-from recipes.openai import OpenAISuggester, get_api_credentials, load_template
-from recipes.openai import normalize_label, read_prompt_examples
+from recipes.openai import OpenAISuggester, PromptExample, get_api_credentials
+from recipes.openai import load_template, normalize_label
+from recipes.openai import read_prompt_examples
 
 CSS_FILE_PATH = Path(__file__).parent / "style.css"
 DEFAULT_PROMPT_PATH = (
@@ -38,8 +41,31 @@ HTML_TEMPLATE = """
 load_dotenv()  # take environment variables from .env.
 
 
+@dataclass
+class TextCatPromptExample(PromptExample):
+    """An example to be passed into an OpenAI TextCat prompt."""
+
+    text: str
+    answer: str
+    reason: str
+
+    @classmethod
+    def from_prodigy(cls, example: Dict, labels: Iterable[str]) -> "PromptExample":
+        """Create a prompt example from Prodigy's format."""
+        if "text" not in example:
+            raise ValueError("Cannot make PromptExample without text")
+
+        full_text = example["text"]
+        reason = example["meta"].get("reason")
+        if len(labels) == 1:
+            answer = "accept" if example.get("answer") else "reject"
+        else:
+            answer = example.get("accept")
+        return cls(text=full_text, answer=answer, reason=reason)
+
+
 class TextCatOpenAISuggester(OpenAISuggester):
-    def parse_response(self, example: Dict, response: str) -> Dict:
+    def parse_response(self, example: Dict, response: str, nlp: Language) -> Dict:
 
         # Add meta to display OpenAI 'reason'
         if "meta" not in example:
