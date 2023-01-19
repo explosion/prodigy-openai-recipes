@@ -102,7 +102,7 @@ def terms_openai_fetch(
     max_tokens=100,
 ):
     """Get bulk term suggestions from the OpenAI API, using zero-shot learning.
-    
+
     The results can then be corrected using the `prodigy textcat.manual` recipe and
     turned into patterns via `prodigy terms.to-patterns`.
     """
