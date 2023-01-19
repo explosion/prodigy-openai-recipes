@@ -78,3 +78,15 @@ def test_parser_response_multi(response, answer):
     nlp = spacy.blank("en")
     example = suggester.parse_response(example={}, response=response, nlp=nlp)
     assert set(example.get("accept")) == set(answer)
+
+
+@pytest.mark.parametrize("labels", [["binary"], ["multi1", "multi2"]])
+def test_parser_no_answer(labels):
+    """Test if parse response works for common examples"""
+    suggester = make_suggester(
+        TextCatOpenAISuggester, prompt_path=DEFAULT_PROMPT_PATH, labels=labels
+    )
+    nlp = spacy.blank("en")
+    example = suggester.parse_response(example={}, response="", nlp=nlp)
+    assert not example.get("accept")
+    assert not example.get("reason")

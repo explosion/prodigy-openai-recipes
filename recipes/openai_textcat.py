@@ -81,10 +81,13 @@ class TextCatOpenAISuggester(OpenAISuggester):
     def _parse_output(self, text: str) -> Dict[str, str]:
         """Parse the actual text response from OpenAI."""
         output = {}
-        for line in text.strip().split("\n"):
-            if line and ":" in line:
-                key, value = line.split(":", 1)
-                output[key.strip().lower()] = value.strip()
+        if text:
+            for line in text.strip().split("\n"):
+                if line and ":" in line:
+                    key, value = line.split(":", 1)
+                    output[key.strip().lower()] = value.strip()
+        else:
+            output = {"answer": "", "reason": ""}
         return output
 
     def _parse_binary(self, example: Dict, response: str) -> Dict:
