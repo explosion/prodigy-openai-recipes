@@ -101,13 +101,10 @@ def terms_openai_fetch(
     n_batch=10,
     max_tokens=100,
 ):
-    """Get bulk term suggestions from an OpenAI API, using zero-shot learning.
-    The results can then be corrected using the `terms.openai.correct` recipe.
-
-    This approach lets you get the openai queries out of the way upfront, which can help
-    if you want to use multiple annotators of if you want to make sure you don't have to
-    wait on the OpenAI queries. The downside is that you can't flag examples to be integrated
-    into the prompt during the annotation.
+    """Get bulk term suggestions from the OpenAI API, using zero-shot learning.
+    
+    The results can then be corrected using the `prodigy textcat.manual` recipe and
+    turned into patterns via `prodigy terms.to-patterns`.
     """
     tic = time.time()
     template = _load_template(prompt_path)
