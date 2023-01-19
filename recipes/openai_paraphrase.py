@@ -166,6 +166,7 @@ def terms_openai_paraphrase(
 
         # Cast to a set to make sure we remove duplicates
         choices = resp.json()["choices"]
+        print(choices[0]['text'])
         sets_of_terms = [set(_parse_terms(c["text"])) for c in choices]
         parsed_terms = list(reduce(lambda a, b: a.union(b), sets_of_terms))
 
