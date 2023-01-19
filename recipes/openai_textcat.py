@@ -162,7 +162,7 @@ def textcat_openai_correct(
 
     template = Template(
         load_template(prompt_path).render(
-            exclusive_classes=exclusive_classes, labels=labels
+            exclusive_classes=exclusive_classes, labels=labels, examples=examples
         )
     )
 

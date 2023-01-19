@@ -3,7 +3,7 @@
     From the text below, determine whether or not it contains a {{ label }}. If it is
     a {{ label }}, answer "accept." If it is not a {{ label }}, answer "reject."
 {% else %}
-    Classify the text below given the following labels: {{ labels|join(", ") }}
+    From the text below, classify if it belongs to the following labels: {{ labels|join(", ") }}
     {% if exclusive_classes %}
     The task is exclusive, so only choose one label from what I provided.
     {% else %}
@@ -22,8 +22,8 @@ Text:
 {{text}}
 """
 {# whitespace #}
-{% if examples|length == 1 %}
-For example:
+{% if examples %}
+Below are some examples (only use these as a guide):
 {# whitespace #}
 {# whitespace #}
 {% for example in examples %}
