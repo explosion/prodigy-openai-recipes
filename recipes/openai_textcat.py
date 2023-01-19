@@ -178,7 +178,7 @@ def textcat_openai_correct(
         openai_api_org=api_org,
         openai_api_key=api_key,
         openai_model=model,
-        openai_timeout_s=10,
+        openai_timeout_s=30,
         openai_n=10,
         verbose=verbose,
     )

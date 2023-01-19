@@ -193,7 +193,7 @@ class OpenAISuggester(abc.ABC):
             "OpenAI-Organization": self.openai_api_org,
             "Content-Type": "application/json",
         }
-        r = retry429(
+        r = retry(
             lambda: httpx.post(
                 "https://api.openai.com/v1/completions",
                 headers=headers,
@@ -241,7 +241,7 @@ def get_api_credentials(model: str = None) -> Tuple[str, str]:
         "Authorization": f"Bearer {api_key}",
         "OpenAI-Organization": org,
     }
-    r = retry429(
+    r = retry(
         lambda: httpx.get(
             "https://api.openai.com/v1/models",
             headers=headers,
@@ -303,19 +303,32 @@ def load_template(path: Path) -> jinja2.Template:
     return jinja2.Template(text, undefined=jinja2.DebugUndefined)
 
 
-def retry429(
-    call_api: Callable[[], httpx.Response], n: int, timeout_s: int
+def retry(
+    call_api: Callable[[], httpx.Response],
+    n: int,
+    timeout_s: int,
+    error_codes: List[int] = [429, 503],
 ) -> httpx.Response:
-    """Retry a call to the OpenAI API if we get a 429: Too many requests
-    error.
+    """Retry a call to the OpenAI API if we get a non-ok status code.
+
+    This function automatically retries a request if it catches a response
+    with an error code in `error_codes`. The amount of timeout also increases
+    exponentially every time we retry.
     """
     assert n >= 0
     assert timeout_s >= 1
     r = call_api()
     i = -1
-    while i < n and r.status_code == 429:
+    # We don't want to retry on every non-ok status code. Some are about
+    # incorrect inputs, etc. and we want to terminate on those.
+    while i < n and r.status_code in error_codes:
         time.sleep(timeout_s)
         i += 1
+        timeout_s = timeout_s * 2  # Increase timeout everytime you retry
+        msg.text(
+            f"Retrying call (retries left: {n-i}, timeout: {timeout_s}s). "
+            f"Previous call returned: {r.status_code} ({r.reason_phrase})"
+        )
     return r
 
 
