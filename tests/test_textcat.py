@@ -49,7 +49,11 @@ def test_parse_response_binary(response, answer):
     """Test if parse response works for common examples"""
     labels = ["recipe"]  # binary
     suggester = make_suggester(
-        TextCatOpenAISuggester, prompt_path=DEFAULT_PROMPT_PATH, labels=labels
+        TextCatOpenAISuggester,
+        prompt_path=DEFAULT_PROMPT_PATH,
+        labels=labels,
+        openai_api_key="fake api key",
+        openai_api_org="fake api org",
     )
     nlp = spacy.blank("en")
     example = suggester.parse_response(example={}, response=response, nlp=nlp)
@@ -73,7 +77,11 @@ def test_parser_response_multi(response, answer):
     """Test if parse response works for common examples"""
     labels = ["recipe", "feedback", "question"]  # multiclass
     suggester = make_suggester(
-        TextCatOpenAISuggester, prompt_path=DEFAULT_PROMPT_PATH, labels=labels
+        TextCatOpenAISuggester,
+        prompt_path=DEFAULT_PROMPT_PATH,
+        labels=labels,
+        openai_api_key="fake api key",
+        openai_api_org="fake api org",
     )
     nlp = spacy.blank("en")
     example = suggester.parse_response(example={}, response=response, nlp=nlp)
@@ -84,7 +92,11 @@ def test_parser_response_multi(response, answer):
 def test_parser_no_answer(labels):
     """Test if parse response works for common examples"""
     suggester = make_suggester(
-        TextCatOpenAISuggester, prompt_path=DEFAULT_PROMPT_PATH, labels=labels
+        TextCatOpenAISuggester,
+        prompt_path=DEFAULT_PROMPT_PATH,
+        labels=labels,
+        openai_api_key="fake api key",
+        openai_api_org="fake api org",
     )
     nlp = spacy.blank("en")
     example = suggester.parse_response(example={}, response="", nlp=nlp)
@@ -99,7 +111,11 @@ def test_parser_no_answer(labels):
 def test_parser_openai_returns_arbitrary_text(labels, response):
     """Test if parser response works for any arbitrary text"""
     suggester = make_suggester(
-        TextCatOpenAISuggester, prompt_path=DEFAULT_PROMPT_PATH, labels=labels
+        TextCatOpenAISuggester,
+        prompt_path=DEFAULT_PROMPT_PATH,
+        labels=labels,
+        openai_api_key="fake api key",
+        openai_api_org="fake api org",
     )
     nlp = spacy.blank("en")
     example = suggester.parse_response(example={}, response=response, nlp=nlp)
