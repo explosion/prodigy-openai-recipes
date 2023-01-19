@@ -18,7 +18,7 @@ from prodigy.util import msg
 from rich.panel import Panel
 from rich.pretty import Pretty
 
-DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "terms_prompt.jinja2"
+DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "paraphrase_prompt.jinja2"
 
 # Set up openai
 load_dotenv()  # take environment variables from .env.
@@ -71,7 +71,7 @@ def _retry429(
     # fmt: off
     "terms.openai.paraphrase",
     query=("Query to send to OpenAI", "positional", None, str),
-    examples_path=("Path to .jsonl file with text examples to paraphrase", None, str),
+    examples_path=("Path to .jsonl file with text examples to paraphrase", "positional", None, str),
     output_path=("Path to save the output", "positional", None, Path),
     n=("Number of items to generate", "option", "n", int),
     n_examples=("Number of examples to send to OpenAI per prompt", "option", "ne", int),
@@ -116,7 +116,7 @@ def terms_openai_paraphrase(
     if best_of < n_batch:
         best_of = n_batch
 
-    examples = [e['text'] for e in prodigy.get_stream(examples_path, rehash=False, dedup=True, skip_invalid=True)]
+    examples = [e['text'] for e in prodigy.get_stream(examples_path, rehash=True, dedup=True, skip_invalid=True)]
     phrases = []
 
     # Ensure we have access to correct environment variables and construct headers
