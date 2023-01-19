@@ -1,0 +1,11 @@
+Generate me {{n}} examples of {{description}}. 
+
+Here are the examples:
+{%- if examples -%}
+{%- for example in examples -%}
+{# whitespace #}
+- {{example}}
+{%- endfor -%}
+{%- endif -%}
+{# whitespace #}
+-

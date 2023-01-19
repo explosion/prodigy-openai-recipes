@@ -69,12 +69,12 @@ def _retry429(
 
 @prodigy.recipe(
     # fmt: off
-    "terms.openai.paraphrase",
+    "paraphrase.openai.fetch",
     query=("Query to send to OpenAI", "positional", None, str),
     examples_path=("Path to .jsonl file with text examples to paraphrase", "positional", None, str),
     output_path=("Path to save the output", "positional", None, Path),
     n=("Number of items to generate", "option", "n", int),
-    n_examples=("Number of examples to send to OpenAI per prompt", "option", "ne", int),
+    n_examples=("Number of random examples to send to OpenAI per prompt", "option", "ne", int),
     model=("GPT-3 model to use for completion", "option", "m", str),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     verbose=("Print extra information to terminal", "flag", "v", bool),
@@ -102,13 +102,16 @@ def terms_openai_paraphrase(
     n_batch=10,
     max_tokens=100,
 ):
-    """Get bulk term suggestions from an OpenAI API, using zero-shot learning.
-    The results can then be corrected using the `terms.openai.correct` recipe.
+    """Get bulk paraphrased variations of your examples from the OpenAI API.
 
-    This approach lets you get the openai queries out of the way upfront, which can help
-    if you want to use multiple annotators of if you want to make sure you don't have to
-    wait on the OpenAI queries. The downside is that you can't flag examples to be integrated
-    into the prompt during the annotation.
+    This approachs allows you to generate texts that's based on your own examples
+    as well as a description. This approach can work especially well if you have
+    a varied set of longer text that you'd like to diversify further. If you're 
+    merely interested in generating terms of short phrases from scratch then the
+    `terms.openai.fetch` recipe is a better choice.
+
+    This recipe samples `n_examples` randomly from `examples_path` on each prompt
+    to OpenAI until a total of `n` examples have been parsed from the responses.
     """
     tic = time.time()
     template = _load_template(prompt_path)
@@ -134,7 +137,7 @@ def terms_openai_paraphrase(
 
     # This recipe may overshoot the target, but we keep going until we have at least `n`
     while len(phrases) < n:
-        phrase_examples = random.choices(examples, k=n_examples)
+        phrase_examples = random.sample(examples, k=n_examples)
         prompt = template.render(n=n, examples=phrase_examples, description=query)
         if verbose:
             rich.print(Panel(prompt, title="Prompt to OpenAI"))
@@ -166,7 +169,6 @@ def terms_openai_paraphrase(
 
         # Cast to a set to make sure we remove duplicates
         choices = resp.json()["choices"]
-        print(choices[0]['text'])
         sets_of_terms = [set(_parse_terms(c["text"])) for c in choices]
         parsed_terms = list(reduce(lambda a, b: a.union(b), sets_of_terms))
 
