@@ -81,7 +81,7 @@ class TextCatOpenAISuggester(OpenAISuggester):
     def _parse_output(self, text: str) -> Dict[str, str]:
         """Parse the actual text response from OpenAI."""
         output = {}
-        if text:
+        if text and any(k in text for k in ("answer", "reason")):
             for line in text.strip().split("\n"):
                 if line and ":" in line:
                     key, value = line.split(":", 1)

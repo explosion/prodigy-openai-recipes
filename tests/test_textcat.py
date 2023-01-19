@@ -90,3 +90,18 @@ def test_parser_no_answer(labels):
     example = suggester.parse_response(example={}, response="", nlp=nlp)
     assert not example.get("accept")
     assert not example.get("reason")
+
+
+@pytest.mark.parametrize("labels", [["binary"], ["multi1", "multi2"]])
+@pytest.mark.parametrize(
+    "response", ["asdfghjklmnop", "I am now a sentient robot. Bow before me."]
+)
+def test_parser_openai_returns_arbitrary_text(labels, response):
+    """Test if parser response works for any arbitrary text"""
+    suggester = make_suggester(
+        TextCatOpenAISuggester, prompt_path=DEFAULT_PROMPT_PATH, labels=labels
+    )
+    nlp = spacy.blank("en")
+    example = suggester.parse_response(example={}, response=response, nlp=nlp)
+    assert not example.get("accept")
+    assert not example.get("reason")
