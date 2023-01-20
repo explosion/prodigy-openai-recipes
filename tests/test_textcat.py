@@ -1,15 +1,16 @@
-import pytest
-from typing import List
 from pathlib import Path
+from typing import Callable, List
 
+import pytest
 import spacy
 
-from recipes.openai_textcat import TextCatOpenAISuggester, DEFAULT_PROMPT_PATH
-from recipes.openai import get_api_credentials, load_template, OpenAISuggester
+from recipes.openai import OpenAISuggester, get_api_credentials, load_template
+from recipes.openai_textcat import (DEFAULT_PROMPT_PATH,
+                                    make_textcat_response_parser)
 
 
 def make_suggester(
-    suggester: OpenAISuggester,
+    response_parser: Callable,
     labels: List[str],
     prompt_path: Path,
     model: str = "text-davinci-003",
@@ -29,7 +30,7 @@ def make_suggester(
         kwargs["segment"] = False
     if "openai_model" not in kwargs:
         kwargs["openai_model"] = "text-davinci-003"
-    return suggester(labels=labels, **kwargs)
+    return OpenAISuggester(response_parser=response_parser, labels=labels, **kwargs)
 
 
 @pytest.mark.parametrize(
@@ -49,7 +50,7 @@ def test_parse_response_binary(response, answer):
     """Test if parse response works for common examples"""
     labels = ["recipe"]  # binary
     suggester = make_suggester(
-        TextCatOpenAISuggester,
+        response_parser=make_textcat_response_parser(labels=labels),
         prompt_path=DEFAULT_PROMPT_PATH,
         labels=labels,
         openai_api_key="fake api key",
@@ -77,7 +78,7 @@ def test_parser_response_multi(response, answer):
     """Test if parse response works for common examples"""
     labels = ["recipe", "feedback", "question"]  # multiclass
     suggester = make_suggester(
-        TextCatOpenAISuggester,
+        response_parser=make_textcat_response_parser(labels=labels),
         prompt_path=DEFAULT_PROMPT_PATH,
         labels=labels,
         openai_api_key="fake api key",
