@@ -167,10 +167,11 @@ def textcat_openai_correct(
         segment=segment,
         openai_api_org=api_org,
         openai_api_key=api_key,
+        openai_n=1,
         openai_model=model,
-        openai_timeout_s=10,
+        openai_retry_timeout_s=10,
         openai_read_timeout_s=20,
-        openai_n=10,
+        openai_n_retries=10,
         verbose=verbose,
     )
     for eg in examples:
@@ -266,10 +267,11 @@ def textcat_openai_fetch(
         segment=segment,
         openai_api_org=api_org,
         openai_api_key=api_key,
+        openai_n=1,
         openai_model=model,
-        openai_timeout_s=10,
+        openai_retry_timeout_s=10,
         openai_read_timeout_s=20,
-        openai_n=10,
+        openai_n_retries=10,
         verbose=verbose,
     )
     for eg in examples:

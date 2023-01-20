@@ -46,7 +46,32 @@ def normalize_label(label: str) -> str:
 
 
 class OpenAISuggester:
-    """Suggest annotations using OpenAI's ChatGPT"""
+    """Suggest annotations using OpenAI's ChatGPT
+
+    prompt_template (jinja2.Template): A Jinja2 template that contains the
+        prompt to send to OpenAI's ChatGPT API.
+    model (str): The ChatGPT model ID to use for completion. Check the OpenAI
+        documentation for more information https://beta.openai.com/docs/models/overview.
+    labels (List[str]): List of labels for annotation.
+    max_examples (int): The maximum number of examples to stream in the Prodigy UI.
+    segment (bool): If set to True, segment the documents into sentences.
+    verbose (bool): Show verbose output in the command-line, including the prompt and response from OpenAI.
+    openai_api_org (str): The OpenAI API organization.
+    openai_api_key (str): The OpenAI API key.
+    openai_temperature (float): The temperature parameter (from 0 to 1) that controls the
+        randomness of ChatGPT's output.
+    openai_max_tokens (int): The maximum amout of tokens that ChatGPT's
+        completion API can generate.
+    openai_n (int): The number of completions to generate for each prompt.
+    openai_n_retries (int): The number of retries whenever a 429 error occurs.
+    openai_retry_timeout_s (int): The amount of time before attempting another request whenever we
+        encounter a 429 error. Increases exponentially for each retry.
+    openai_read_timeout_s (int): The amount of time to wait a response output during a request.
+    examples (List[PromptExample]): A list of examples to add to the prompt to guide ChatGPT output.
+    response_parser (Callable[str] -> Dict): A function that accepts a string that represents
+        ChatGPT's raw response, and parses it into a dictionary that is compatible to Prodigy's
+        annotation interfaces.
+    """
 
     prompt_template: jinja2.Template
     model: str
@@ -56,10 +81,11 @@ class OpenAISuggester:
     verbose: bool
     openai_api_org: str
     openai_api_key: str
-    openai_temperature: int
+    openai_temperature: float
     openai_max_tokens: int
-    openai_timeout_s: int
+    openai_retry_timeout_s: int
     openai_read_timeout_s: int
+    openai_n_retries: int
     openai_n: int
     examples: List[PromptExample]
     response_parser: Callable
@@ -77,8 +103,9 @@ class OpenAISuggester:
         response_parser: Callable,
         openai_temperature: int = 0,
         openai_max_tokens: int = 500,
-        openai_timeout_s: int = 1,
+        openai_retry_timeout_s: int = 1,
         openai_read_timeout_s: int = 30,
+        openai_n_retries: int = 10,
         openai_n: int = 1,
         verbose: bool = False,
     ):
@@ -93,9 +120,10 @@ class OpenAISuggester:
         self.openai_api_key = openai_api_key
         self.openai_temperature = openai_temperature
         self.openai_max_tokens = openai_max_tokens
-        self.openai_timeout_s = openai_timeout_s
+        self.openai_retry_timeout_s = openai_retry_timeout_s
         self.openai_read_timeout_s = openai_read_timeout_s
         self.openai_n = openai_n
+        self.openai_n_retries = openai_n_retries
         self.response_parser = response_parser
 
     def __call__(
@@ -196,10 +224,12 @@ class OpenAISuggester:
                     "prompt": prompts,
                     "temperature": self.openai_temperature,
                     "max_tokens": self.openai_max_tokens,
+                    "n": self.openai_n,
                 },
+                timeout=self.openai_read_timeout_s,
             ),
-            n=self.openai_n,
-            timeout_s=self.openai_read_timeout_s,
+            n=self.openai_n_retries,
+            timeout_s=self.openai_retry_timeout_s,
         )
         r.raise_for_status()
         responses = r.json()
