@@ -72,6 +72,8 @@ def make_textcat_response_parser(labels: List[str]) -> Callable:
                 if line and ":" in line:
                     key, value = line.split(":", 1)
                     response[key.strip().lower()] = value.strip()
+        else:
+            response = {"answer": "", "reason": ""}
 
         example = _fmt_binary(response) if len(labels) == 1 else _fmt_multi(response)
         return example
