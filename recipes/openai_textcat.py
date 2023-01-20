@@ -90,6 +90,7 @@ def make_textcat_response_parser(labels: List[str]) -> Callable:
         }
 
     def _fmt_multi(response: Dict[str, str]) -> Dict:
+        """Parse multilabel TextCat where the 'accept' key is a list of positive labels."""
         return {
             "options": [{"id": label, "text": label} for label in labels],
             "answer": "accept",
