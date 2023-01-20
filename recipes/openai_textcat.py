@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, List, Optional, Iterable
+from typing import Dict, List, Optional, Iterable, Callable
 from dataclasses import dataclass
 
 import prodigy
@@ -64,56 +64,43 @@ class TextCatPromptExample(PromptExample):
         return cls(text=full_text, answer=answer, reason=reason)
 
 
-class TextCatOpenAISuggester(OpenAISuggester):
-    def parse_response(self, example: Dict, response: str, nlp: Language) -> Dict:
-
-        # Add meta to display OpenAI 'reason'
-        if "meta" not in example:
-            example["meta"] = {}
-
-        example = (
-            self._parse_binary(example, response)
-            if len(self.labels) == 1
-            else self._parse_multi(example, response)
-        )
-        return example
-
-    def _parse_output(self, text: str) -> Dict[str, str]:
-        """Parse the actual text response from OpenAI."""
-        output = {}
+def make_textcat_response_parser(labels: List[str]) -> Callable:
+    def _parse_response(text: str) -> Dict:
+        response: Dict[str, str] = {}
         if text and any(k in text.lower() for k in ("answer", "reason")):
             for line in text.strip().split("\n"):
                 if line and ":" in line:
                     key, value = line.split(":", 1)
-                    output[key.strip().lower()] = value.strip()
-        else:
-            output = {"answer": "", "reason": ""}
-        return output
+                    response[key.strip().lower()] = value.strip()
 
-    def _parse_binary(self, example: Dict, response: str) -> Dict:
+        example = _fmt_binary(response) if len(labels) == 1 else _fmt_multi(response)
+        return example
+
+    def _fmt_binary(response: Dict[str, str]) -> Dict:
         """Parse binary TextCat where the 'answer' key means it's a positive class."""
-        output = self._parse_output(response)
-        example["answer"] = output["answer"].lower() == "accept"
-        example["meta"] = {
-            "answer": output["answer"].upper(),
-            "reason": output["reason"],
+        return {
+            "answer": response["answer"].lower() == "accept",
+            "label": labels[0],
+            "meta": {
+                "answer": response["answer"].upper(),
+                "reason": response["reason"],
+            },
         }
-        example["label"] = self.labels[0]
-        return example
 
-    def _parse_multi(self, example: Dict, response: str) -> Dict:
-        """Parse multilabel TextCat."""
-        output = self._parse_output(response)
-        example["options"] = [{"id": label, "text": label} for label in self.labels]
-        example["meta"]["reason"] = output["reason"]
-        example["answer"] = "accept"
-        # Filter removes any empty strings
-        example["accept"] = list(
-            filter(
-                None, [normalize_label(s.strip()) for s in output["answer"].split(",")]
-            )
-        )
-        return example
+    def _fmt_multi(response: Dict[str, str]) -> Dict:
+        return {
+            "options": [{"id": label, "text": label} for label in labels],
+            "answer": "accept",
+            "meta": {"reason": response.get("reason", "")},
+            "accept": list(
+                filter(
+                    None,
+                    [normalize_label(s.strip()) for s in response["answer"].split(",")],
+                )
+            ),
+        }
+
+    return _parse_response
 
 
 @prodigy.recipe(
@@ -170,7 +157,8 @@ def textcat_openai_correct(
     )
 
     # Create OpenAISuggester with ChatGPT parameters
-    openai = TextCatOpenAISuggester(
+    openai = OpenAISuggester(
+        response_parser=make_textcat_response_parser(labels=labels),
         prompt_template=template,
         labels=labels,
         max_examples=max_examples,
@@ -267,7 +255,8 @@ def textcat_openai_fetch(
     )
 
     # Create OpenAISuggester with ChatGPT parameters
-    openai = TextCatOpenAISuggester(
+    openai = OpenAISuggester(
+        response_parser=make_textcat_response_parser(labels=labels),
         prompt_template=template,
         labels=labels,
         max_examples=max_examples,

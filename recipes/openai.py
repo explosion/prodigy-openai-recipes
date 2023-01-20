@@ -45,7 +45,7 @@ def normalize_label(label: str) -> str:
     return label.lower()
 
 
-class OpenAISuggester(abc.ABC):
+class OpenAISuggester:
     """Suggest annotations using OpenAI's ChatGPT"""
 
     prompt_template: jinja2.Template
@@ -62,6 +62,7 @@ class OpenAISuggester(abc.ABC):
     openai_read_timeout_s: int
     openai_n: int
     examples: List[PromptExample]
+    response_parser: Callable
 
     def __init__(
         self,
@@ -73,6 +74,7 @@ class OpenAISuggester(abc.ABC):
         openai_api_org: str,
         openai_api_key: str,
         openai_model: str,
+        response_parser: Callable,
         openai_temperature: int = 0,
         openai_max_tokens: int = 500,
         openai_timeout_s: int = 1,
@@ -94,6 +96,7 @@ class OpenAISuggester(abc.ABC):
         self.openai_timeout_s = openai_timeout_s
         self.openai_read_timeout_s = openai_read_timeout_s
         self.openai_n = openai_n
+        self.response_parser = response_parser
 
     def __call__(
         self,
@@ -109,18 +112,6 @@ class OpenAISuggester(abc.ABC):
         stream = self.pipe(stream, nlp, batch_size, **kwargs)
         stream = self.set_hashes(stream)
         return stream
-
-    @abc.abstractmethod
-    def parse_response(self, example: Dict, response: str, nlp: Language) -> Dict:
-        """Interpret OpenAI's response into a Prodigy-compatible format.
-
-        OpenAI's response is formatted line by line, and this needs to be parsed
-        into one of Prodigy's annotation interfaces (https://prodi.gy/docs/api-interfaces).
-
-        There's no guarantee that the model will give us well-formed output. It
-        could say anything, it's an LM.  So we need to be robust.
-        """
-        pass
 
     def pipe(self, stream: Iterable[Dict], nlp: Language, batch_size: int, **kwargs):
         """Process the stream and add suggestions from OpenAI."""
@@ -181,7 +172,7 @@ class OpenAISuggester(abc.ABC):
                 example["meta"] = {}
 
             response = example["openai"].get("response", "")
-            example = self.parse_response(example=example, response=response, nlp=nlp)
+            example.update(self.response_parser(response=response))
             yield example
 
     def _get_prompt(
