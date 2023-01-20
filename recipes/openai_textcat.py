@@ -155,7 +155,6 @@ def textcat_openai_correct(
     if segment:
         nlp.add_pipe("sentencizer")
 
-    # Create partial render of the template
     if not exclusive_classes and len(labels) == 1:
         msg.warn(
             "Binary classification should always be exclusive. Setting "
@@ -163,6 +162,7 @@ def textcat_openai_correct(
         )
         exclusive_classes = True
 
+    # Create partial render of the template
     template = Template(
         load_template(prompt_path).render(
             exclusive_classes=exclusive_classes, labels=labels, examples=examples
@@ -250,7 +250,6 @@ def textcat_openai_fetch(
     if segment:
         nlp.add_pipe("sentencizer")
 
-    # Create partial render of the template
     if not exclusive_classes and len(labels) == 1:
         msg.warn(
             "Binary classification should always be exclusive. Setting "
@@ -258,6 +257,7 @@ def textcat_openai_fetch(
         )
         exclusive_classes = True
 
+    # Create partial render of the template
     template = Template(
         load_template(prompt_path).render(
             exclusive_classes=exclusive_classes,
