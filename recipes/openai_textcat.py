@@ -262,6 +262,7 @@ def textcat_openai_fetch(
         load_template(prompt_path).render(
             exclusive_classes=exclusive_classes,
             labels=labels,
+            examples=examples,
         )
     )
 
