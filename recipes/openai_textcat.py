@@ -1,6 +1,6 @@
-from pathlib import Path
-from typing import Dict, List, Optional, Iterable, Callable
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable, Dict, Iterable, List, Optional
 
 import prodigy
 import spacy
