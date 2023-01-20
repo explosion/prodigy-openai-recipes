@@ -172,7 +172,7 @@ class OpenAISuggester:
                 example["meta"] = {}
 
             response = example["openai"].get("response", "")
-            example.update(self.response_parser(response=response))
+            example.update(self.response_parser(response))
             yield example
 
     def _get_prompt(
