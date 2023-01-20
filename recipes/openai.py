@@ -59,6 +59,7 @@ class OpenAISuggester(abc.ABC):
     openai_temperature: int
     openai_max_tokens: int
     openai_timeout_s: int
+    openai_read_timeout_s: int
     openai_n: int
     examples: List[PromptExample]
 
@@ -75,6 +76,7 @@ class OpenAISuggester(abc.ABC):
         openai_temperature: int = 0,
         openai_max_tokens: int = 500,
         openai_timeout_s: int = 1,
+        openai_read_timeout_s: int = 30,
         openai_n: int = 1,
         verbose: bool = False,
     ):
@@ -90,6 +92,7 @@ class OpenAISuggester(abc.ABC):
         self.openai_temperature = openai_temperature
         self.openai_max_tokens = openai_max_tokens
         self.openai_timeout_s = openai_timeout_s
+        self.openai_read_timeout_s = openai_read_timeout_s
         self.openai_n = openai_n
 
     def __call__(
@@ -205,7 +208,7 @@ class OpenAISuggester(abc.ABC):
                 },
             ),
             n=self.openai_n,
-            timeout_s=self.openai_timeout_s,
+            timeout_s=self.openai_read_timeout_s,
         )
         r.raise_for_status()
         responses = r.json()
