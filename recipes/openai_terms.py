@@ -2,7 +2,7 @@ import os
 import time
 from functools import reduce
 from pathlib import Path
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Iterable, TypeVar
 
 import httpx
 import jinja2
@@ -14,14 +14,26 @@ import rich
 import srsly
 from dotenv import load_dotenv
 from prodigy.util import msg
+from prodigy import set_hashes
 from rich.panel import Panel
 from rich.pretty import Pretty
 
-DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "terms_prompt.jinja2"
+DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "variants_prompt.jinja2"
 
 # Set up openai
 load_dotenv()  # take environment variables from .env.
 
+_ItemT = TypeVar("_ItemT")
+
+def _batch_sequence(items: Iterable[_ItemT], batch_size: int) -> Iterable[List[_ItemT]]:
+    batch = []
+    for eg in items:
+        batch.append(eg)
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
 
 def _load_template(path: Path) -> jinja2.Template:
     # I know jinja has a lot of complex file loading stuff,
@@ -49,6 +61,23 @@ def _parse_terms(completion: str) -> List[str]:
         lines = lines[:-1]
     return [item.replace("-", "").strip() for item in lines]
 
+
+def _handle_numbered_list(line: str):
+    if line[0].isnumeric:
+        if all(char.isnumeric for char in line[:line.find(".")]):
+            return line[line.find(".") + 1:]
+    return line
+
+
+def _parse_variants(completion: str) -> List[str]:
+    # The variants parsing is different because we have to worry about 
+    # token limits for the final term in the list.
+    if "\n" not in completion:
+        # Sometimes it only returns a single item. 
+        lines = [completion]
+    else:
+        lines = [_handle_numbered_list(item) for item in completion.split("\n") if len(item)]
+    return [item.replace("-", "").strip() for item in lines]
 
 def _retry429(
     call_api: Callable[[], httpx.Response], n: int, timeout_s: int
@@ -194,4 +223,114 @@ def terms_openai_fetch(
             rich.print(
                 f"Received {len(parsed_terms)} items, totalling {len(terms)} terms. "
                 f"Progress at {round(len(terms)/n*100)}% after {round(time.time() - tic)}s."
+            )
+
+
+@prodigy.recipe(
+    # fmt: off
+    "terms.openai.variants",
+    query=("Query to send to OpenAI", "positional", None, str),
+    input_path=("Path to save the output", "positional", None, Path),
+    output_path=("Path to save the output", "positional", None, Path),
+    model=("GPT-3 model to use for completion", "option", "m", str),
+    prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
+    verbose=("Print extra information to terminal", "flag", "v", bool),
+    progress=("Print progress of the recipe.", "flag", "pb", bool),
+    temperature=("OpenAI temperature param", "option", "t", float),
+    top_p=("OpenAI top_p param", "option", "tp", float),
+    frequency_penalty=("OpenAI frequency penalty param", "option", "nb", int),
+    max_tokens=("Max tokens to generate per call", "option", "mt", int),
+    # fmt: on
+)
+def variants_openai_fetch(
+    query: str,
+    input_path: Path,
+    output_path: Path,
+    model: str = "text-davinci-003",
+    prompt_path: Path = DEFAULT_PROMPT_PATH,
+    verbose: bool = False,
+    progress: bool = False,
+    temperature=0.1,
+    top_p=1.0,
+    frequency_penalty=0.85,
+    max_tokens=100,
+):
+    """Get variations on term suggestions from the OpenAI API, using zero-shot learning.
+
+    The results can then be corrected using the `prodigy textcat.manual` recipe and
+    turned into patterns via `prodigy terms.to-patterns`.
+    """
+    tic = time.time()
+    template = _load_template(prompt_path)
+
+    # Collect all the parent terms to generate variations for
+    parent_examples = (set_hashes(e) for e in srsly.read_jsonl(input_path))
+
+    # Ensure we have access to correct environment variables and construct headers
+    if not os.getenv("OPENAI_KEY"):
+        msg.fail("The `OPENAI_KEY` is missing from your `.env` file.", exits=1)
+
+    if not os.getenv("OPENAI_ORG"):
+        msg.fail("The `OPENAI_ORG` is missing from your `.env` file.", exits=1)
+
+    headers = {
+        "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
+        "OpenAI-Organization": os.getenv("OPENAI_ORG"),
+        "Content-Type": "application/json",
+    }
+
+    # This recipe may overshoot the target, but we keep going until we have at least `n`
+    batched_parents = list(_batch_sequence(parent_examples, 5))
+    for i, batch in enumerate(batched_parents):
+        prompts = [template.render(example=ex['text'], description=query) for ex in batch]
+        if verbose:
+            rich.print(Panel(prompts[0], title="Prompt to OpenAI"))
+
+        make_request = lambda: httpx.post(
+            "https://api.openai.com/v1/completions",
+            headers=headers,
+            json={
+                "model": model,
+                "prompt": prompts,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "top_p": top_p,
+                "frequency_penalty": frequency_penalty
+            },
+            timeout=45,
+        )
+
+        # Catch 429: too many request errors
+        resp = _retry429(make_request, n=1, timeout_s=30)
+
+        # Report on any other error that might happen, the most typical use-case is
+        # catching the maximum context length of 4097 tokens when the prompt gets big.
+        if resp.status_code != 200:
+            msg.fail(f"Received status code {resp.status_code} from OpenAI. Details:")
+            rich.print(resp.json())
+            exit(code=1)
+
+        # Cast to a set to make sure we remove duplicates
+        examples = []
+        choices = resp.json()["choices"]
+        for choice, parent in zip(choices, batch):
+            for term in set(_parse_variants(choice["text"])):
+                example = {
+                    "text": term,
+                    "meta": {"openai_query": query, "parent": parent['text']}
+                }
+                examples.append(example)
+
+        # Save intermediate results into file, in-case of a hiccup
+        srsly.write_jsonl(
+            output_path,
+            examples,
+            append=True,
+            append_new_line=False,
+        )
+
+        if progress:
+            rich.print(
+                f"Batch {i + 1} complete, totalling {len(examples)} variants. "
+                f"Progress at {round(i/len(batched_parents)*100)}% after {round(time.time() - tic)}s."
             )
