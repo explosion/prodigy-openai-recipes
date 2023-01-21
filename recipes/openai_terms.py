@@ -2,7 +2,7 @@ import os
 import time
 from functools import reduce
 from pathlib import Path
-from typing import Callable, Dict, List, Iterable, TypeVar
+from typing import Callable, Dict, Iterable, List, TypeVar
 
 import httpx
 import jinja2
@@ -13,8 +13,8 @@ import prodigy.util
 import rich
 import srsly
 from dotenv import load_dotenv
-from prodigy.util import msg
 from prodigy import set_hashes
+from prodigy.util import msg
 from rich.panel import Panel
 from rich.pretty import Pretty
 
@@ -274,14 +274,18 @@ def variants_openai_fetch(
 
     # Collect all the parent terms to generate variations for
     # making sure that when we --resume we don't generate for the same parents.
-    parent_examples = (set_hashes(e, input_keys=("text",)) for e in srsly.read_jsonl(input_path))
+    parent_examples = (
+        set_hashes(e, input_keys=("text",)) for e in srsly.read_jsonl(input_path)
+    )
     existing_parent_hashes = {}
     if resume:
+
         def add_parent_hash(stream):
             for ex in stream:
                 parent_ex = {"text": ex["meta"]["parent"]}
                 ex = set_hashes(parent_ex, input_keys=("text",))
                 yield ex
+
         stream = srsly.read_jsonl(output_path) if output_path.exists() else []
         stream = add_parent_hash(stream)
         existing_parent_hashes = set(ex["_input_hash"] for ex in stream)
