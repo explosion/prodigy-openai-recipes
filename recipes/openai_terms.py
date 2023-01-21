@@ -18,12 +18,15 @@ from prodigy import set_hashes
 from rich.panel import Panel
 from rich.pretty import Pretty
 
-DEFAULT_PROMPT_PATH = Path(__file__).parent.parent / "templates" / "variants_prompt.jinja2"
+DEFAULT_PROMPT_PATH = (
+    Path(__file__).parent.parent / "templates" / "variants_prompt.jinja2"
+)
 
 # Set up openai
 load_dotenv()  # take environment variables from .env.
 
 _ItemT = TypeVar("_ItemT")
+
 
 def _batch_sequence(items: Iterable[_ItemT], batch_size: int) -> Iterable[List[_ItemT]]:
     batch = []
@@ -34,6 +37,7 @@ def _batch_sequence(items: Iterable[_ItemT], batch_size: int) -> Iterable[List[_
             batch = []
     if batch:
         yield batch
+
 
 def _load_template(path: Path) -> jinja2.Template:
     # I know jinja has a lot of complex file loading stuff,
@@ -64,20 +68,23 @@ def _parse_terms(completion: str) -> List[str]:
 
 def _handle_numbered_list(line: str):
     if line[0].isnumeric:
-        if all(char.isnumeric for char in line[:line.find(".")]):
-            return line[line.find(".") + 1:]
+        if all(char.isnumeric for char in line[: line.find(".")]):
+            return line[line.find(".") + 1 :]
     return line
 
 
 def _parse_variants(completion: str) -> List[str]:
-    # The variants parsing is different because we have to worry about 
+    # The variants parsing is different because we have to worry about
     # token limits for the final term in the list.
     if "\n" not in completion:
-        # Sometimes it only returns a single item. 
+        # Sometimes it only returns a single item.
         lines = [completion]
     else:
-        lines = [_handle_numbered_list(item) for item in completion.split("\n") if len(item)]
+        lines = [
+            _handle_numbered_list(item) for item in completion.split("\n") if len(item)
+        ]
     return [item.replace("-", "").strip() for item in lines]
+
 
 def _retry429(
     call_api: Callable[[], httpx.Response], n: int, timeout_s: int
@@ -240,6 +247,7 @@ def terms_openai_fetch(
     top_p=("OpenAI top_p param", "option", "tp", float),
     frequency_penalty=("OpenAI frequency penalty param", "option", "nb", int),
     max_tokens=("Max tokens to generate per call", "option", "mt", int),
+    resume=("Don't generate examples from parents that already have children.", "flag", "r", bool),
     # fmt: on
 )
 def variants_openai_fetch(
@@ -254,6 +262,7 @@ def variants_openai_fetch(
     top_p=1.0,
     frequency_penalty=0.85,
     max_tokens=100,
+    resume=False,
 ):
     """Get variations on term suggestions from the OpenAI API, using zero-shot learning.
 
@@ -264,7 +273,21 @@ def variants_openai_fetch(
     template = _load_template(prompt_path)
 
     # Collect all the parent terms to generate variations for
-    parent_examples = (set_hashes(e) for e in srsly.read_jsonl(input_path))
+    # making sure that when we --resume we don't generate for the same parents.
+    parent_examples = (set_hashes(e, input_keys=("text",)) for e in srsly.read_jsonl(input_path))
+    existing_parent_hashes = {}
+    if resume:
+        def add_parent_hash(stream):
+            for ex in stream:
+                parent_ex = {"text": ex["meta"]["parent"]}
+                ex = set_hashes(parent_ex, input_keys=("text",))
+                yield ex
+        stream = srsly.read_jsonl(output_path) if output_path.exists() else []
+        stream = add_parent_hash(stream)
+        existing_parent_hashes = set(ex["_input_hash"] for ex in stream)
+    parent_examples = (
+        ex for ex in parent_examples if ex["_input_hash"] not in existing_parent_hashes
+    )
 
     # Ensure we have access to correct environment variables and construct headers
     if not os.getenv("OPENAI_KEY"):
@@ -282,7 +305,9 @@ def variants_openai_fetch(
     # This recipe may overshoot the target, but we keep going until we have at least `n`
     batched_parents = list(_batch_sequence(parent_examples, 5))
     for i, batch in enumerate(batched_parents):
-        prompts = [template.render(example=ex['text'], description=query) for ex in batch]
+        prompts = [
+            template.render(example=ex["text"], description=query) for ex in batch
+        ]
         if verbose:
             rich.print(Panel(prompts[0], title="Prompt to OpenAI"))
 
@@ -295,7 +320,7 @@ def variants_openai_fetch(
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 "top_p": top_p,
-                "frequency_penalty": frequency_penalty
+                "frequency_penalty": frequency_penalty,
             },
             timeout=45,
         )
@@ -317,7 +342,7 @@ def variants_openai_fetch(
             for term in set(_parse_variants(choice["text"])):
                 example = {
                     "text": term,
-                    "meta": {"openai_query": query, "parent": parent['text']}
+                    "meta": {"openai_query": query, "parent": parent["text"]},
                 }
                 examples.append(example)
 
