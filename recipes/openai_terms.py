@@ -2,12 +2,12 @@ import os
 import time
 from functools import reduce
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, TypeVar
+from typing import Callable, Dict, Iterable, List, TypeVar, Union
 
 import httpx
 import jinja2
 import prodigy
-import prodigy.components.db
+from prodigy.components.db import connect
 import prodigy.components.preprocess
 import prodigy.util
 import rich
@@ -252,7 +252,7 @@ def terms_openai_fetch(
 )
 def variants_openai_fetch(
     query: str,
-    input_path: Path,
+    input_path: Union[Path, str],
     output_path: Path,
     model: str = "text-davinci-003",
     prompt_path: Path = DEFAULT_PROMPT_PATH,
@@ -272,15 +272,26 @@ def variants_openai_fetch(
     tic = time.time()
     template = _load_template(prompt_path)
 
+    # Collect stream of parents, which could be a Prodigy dataset too
+    if input_path.exists():
+        parent_stream = srsly.read_jsonl(input_path)
+    else:
+        db = connect()
+        # At this point we know it's not a file on disk, so cast to string
+        input_path = str(input_path)
+        if input_path not in db.datasets:
+            msg.fail(f"The value of input_path `{input_path}` does not exist on disk and does not exist as a dataset in Prodigy. Might be a typo?", exits=True)
+        parent_stream = db.get_dataset(input_path)
+        parent_stream = (ex for ex in parent_stream if ex['answer'] == 'accept')
+
     # Collect all the parent terms to generate variations for
     # making sure that when we --resume we don't generate for the same parents.
     parent_examples = (
-        set_hashes(e, input_keys=("text",)) for e in srsly.read_jsonl(input_path)
+        set_hashes(e, input_keys=("text",)) for e in parent_stream
     )
     existing_parent_hashes = {}
     if resume:
-
-        def add_parent_hash(stream):
+        def add_parent_hash(stream: Iterable[_ItemT]) -> Iterable[_ItemT]:
             for ex in stream:
                 parent_ex = {"text": ex["meta"]["parent"]}
                 ex = set_hashes(parent_ex, input_keys=("text",))
@@ -289,6 +300,7 @@ def variants_openai_fetch(
         stream = srsly.read_jsonl(output_path) if output_path.exists() else []
         stream = add_parent_hash(stream)
         existing_parent_hashes = set(ex["_input_hash"] for ex in stream)
+
     parent_examples = (
         ex for ex in parent_examples if ex["_input_hash"] not in existing_parent_hashes
     )
