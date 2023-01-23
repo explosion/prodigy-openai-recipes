@@ -90,6 +90,8 @@ class OpenAISuggester:
     examples: List[PromptExample]
     response_parser: Callable
 
+    OPENAI_COMPLETIONS_ENDPOINT: str = "https://api.openai.com/v1/completions"
+
     def __init__(
         self,
         prompt_template: jinja2.Template,
@@ -205,7 +207,7 @@ class OpenAISuggester:
 
     def _get_prompt(
         self, text: str, labels: List[str], examples: List[PromptExample]
-    ) -> str:
+    ) -> List[str]:
         """Generate a prompt for ChatGPT OpenAI."""
         return self.prompt_template.render(text=text, labels=labels, examples=examples)
 
@@ -217,7 +219,7 @@ class OpenAISuggester:
         }
         r = retry(
             lambda: httpx.post(
-                "https://api.openai.com/v1/completions",
+                self.OPENAI_COMPLETIONS_ENDPOINT,
                 headers=headers,
                 json={
                     "model": self.model,
