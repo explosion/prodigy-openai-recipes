@@ -22,7 +22,16 @@ _ItemT = TypeVar("_ItemT")
 
 @dataclass
 class PromptExample(abc.ABC):
-    """An example to be passed into an OpenAI prompt."""
+    """An example to be passed into an OpenAI prompt.
+
+    When inheriting this dataclass, you should implement the `from_prodigy`
+    function that takes in a Prodigy task example and formats it back
+    into a dataclass that can fill a prompt template.
+
+    You can refer to Prodigy's API Interfaces documentation
+    (https://prodi.gy/docs/api-interfaces) to see how most examples are structured
+    for each task.
+    """
 
     @staticmethod
     def is_flagged(example: Dict) -> bool:
