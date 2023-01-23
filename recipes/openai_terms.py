@@ -7,13 +7,13 @@ from typing import Callable, Dict, Iterable, List, TypeVar, Union
 import httpx
 import jinja2
 import prodigy
-from prodigy.components.db import connect
 import prodigy.components.preprocess
 import prodigy.util
 import rich
 import srsly
 from dotenv import load_dotenv
 from prodigy import set_hashes
+from prodigy.components.db import connect
 from prodigy.util import msg
 from rich.panel import Panel
 from rich.pretty import Pretty
@@ -102,6 +102,20 @@ def _retry429(
     return r
 
 
+def _generate_headers() -> Dict[str, str]:
+    if not os.getenv("OPENAI_KEY"):
+        msg.fail("The `OPENAI_KEY` is missing from your `.env` file.", exits=1)
+
+    if not os.getenv("OPENAI_ORG"):
+        msg.fail("The `OPENAI_ORG` is missing from your `.env` file.", exits=1)
+
+    return {
+        "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
+        "OpenAI-Organization": os.getenv("OPENAI_ORG"),
+        "Content-Type": "application/json",
+    }
+
+
 @prodigy.recipe(
     # fmt: off
     "terms.openai.fetch",
@@ -172,11 +186,7 @@ def terms_openai_fetch(
     if not os.getenv("OPENAI_ORG"):
         msg.fail("The `OPENAI_ORG` is missing from your `.env` file.", exits=1)
 
-    headers = {
-        "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
-        "OpenAI-Organization": os.getenv("OPENAI_ORG"),
-        "Content-Type": "application/json",
-    }
+    headers = _generate_headers()
 
     # This recipe may overshoot the target, but we keep going until we have at least `n`
     while len(terms) < n:
@@ -280,17 +290,19 @@ def variants_openai_fetch(
         # At this point we know it's not a file on disk, so cast to string
         input_path = str(input_path)
         if input_path not in db.datasets:
-            msg.fail(f"The value of input_path `{input_path}` does not exist on disk and does not exist as a dataset in Prodigy. Might be a typo?", exits=True)
+            msg.fail(
+                f"The value of input_path `{input_path}` does not exist on disk and does not exist as a dataset in Prodigy. Might be a typo?",
+                exits=True,
+            )
         parent_stream = db.get_dataset(input_path)
-        parent_stream = (ex for ex in parent_stream if ex['answer'] == 'accept')
+        parent_stream = (ex for ex in parent_stream if ex["answer"] == "accept")
 
     # Collect all the parent terms to generate variations for
     # making sure that when we --resume we don't generate for the same parents.
-    parent_examples = (
-        set_hashes(e, input_keys=("text",)) for e in parent_stream
-    )
+    parent_examples = (set_hashes(e, input_keys=("text",)) for e in parent_stream)
     existing_parent_hashes = {}
     if resume:
+
         def add_parent_hash(stream: Iterable[_ItemT]) -> Iterable[_ItemT]:
             for ex in stream:
                 parent_ex = {"text": ex["meta"]["parent"]}
@@ -306,17 +318,7 @@ def variants_openai_fetch(
     )
 
     # Ensure we have access to correct environment variables and construct headers
-    if not os.getenv("OPENAI_KEY"):
-        msg.fail("The `OPENAI_KEY` is missing from your `.env` file.", exits=1)
-
-    if not os.getenv("OPENAI_ORG"):
-        msg.fail("The `OPENAI_ORG` is missing from your `.env` file.", exits=1)
-
-    headers = {
-        "Authorization": f"Bearer {os.getenv('OPENAI_KEY')}",
-        "OpenAI-Organization": os.getenv("OPENAI_ORG"),
-        "Content-Type": "application/json",
-    }
+    headers = _generate_headers()
 
     # This recipe may overshoot the target, but we keep going until we have at least `n`
     batched_parents = list(_batch_sequence(parent_examples, 5))
