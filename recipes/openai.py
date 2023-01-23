@@ -91,6 +91,7 @@ class OpenAISuggester:
     response_parser: Callable
 
     OPENAI_COMPLETIONS_ENDPOINT: str = "https://api.openai.com/v1/completions"
+    RETRY_ERROR_CODES: List[str] = [429, 503]
 
     def __init__(
         self,
@@ -232,6 +233,7 @@ class OpenAISuggester:
             ),
             n=self.openai_n_retries,
             timeout_s=self.openai_retry_timeout_s,
+            error_codes=self.RETRY_ERROR_CODES,
         )
         r.raise_for_status()
         responses = r.json()
