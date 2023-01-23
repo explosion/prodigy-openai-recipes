@@ -206,7 +206,7 @@ def terms_openai_fetch(
                 "n": min(n_batch, best_of),
                 "best_of": best_of,
             },
-            timeout=30,
+            timeout=45,
         )
 
         # Catch 429: too many request errors
