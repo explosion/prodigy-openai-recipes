@@ -12,12 +12,12 @@ from recipes.openai_textcat import DEFAULT_PROMPT_PATH, make_textcat_response_pa
     # fmt: off
     "response,answer",
     [
-        ("Answer: accept\nReason: The text is a recipe.", True),
-        ("Answer: Accept\nReason: The text is a recipe.", True),
-        ("Answer: reject\nReason: The text is not a recipe.", False),
-        ("Answer: Reject\nReason: The text is not a recipe.", False),
-        ("answer: reject\nreason: The text is not a recipe.", False),
-        ("answer: Reject\nreason: The text is not a recipe.\nI don't know what it's about.", False),
+        ("Answer: accept\nReason: The text is a recipe.", "accept"),
+        ("Answer: Accept\nReason: The text is a recipe.", "accept"),
+        ("Answer: reject\nReason: The text is not a recipe.", "reject"),
+        ("Answer: Reject\nReason: The text is not a recipe.", "reject"),
+        ("answer: reject\nreason: The text is not a recipe.", "reject"),
+        ("answer: Reject\nreason: The text is not a recipe.\nI don't know what it's about.", "reject"),
     ],
     # fmt: on
 )

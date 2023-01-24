@@ -81,7 +81,7 @@ def make_textcat_response_parser(labels: List[str]) -> Callable:
     def _fmt_binary(response: Dict[str, str]) -> Dict:
         """Parse binary TextCat where the 'answer' key means it's a positive class."""
         return {
-            "answer": response["answer"].lower() == "accept",
+            "answer": response["answer"].lower(),
             "label": labels[0],
             "meta": {
                 "answer": response["answer"].upper(),
