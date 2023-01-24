@@ -159,6 +159,105 @@ python ./scripts/train_hf_ner.py ./data/annotations/train.spacy ./data/annotatio
 
 The resulting model will be saved to the `hf-ner-model/` directory.
 
+## `textcat.openai.correct`: Textcat annotation with zero- or few-shot learning
+
+This recipe enables us to classify texts faster with the help of a large language
+model.  It also provides a "reason" as to why a particular label was chosen.
+Similar to the `ner.openai.correct` recipe, you can flag examples as correct, or
+manually curate them. 
+
+```bash
+python -m prodigy textcat.openai.correct dataset filepath labels [--options] -F ./recipes/openai_textcat.py
+```
+
+| Argument                    | Type | Description                                                                                                                                     | Default                             |
+| --------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `dataset`                   | str  | Prodigy dataset to save annotations to.                                                                                                         |                                     |
+| `file_path`                 | Path | Path to `.jsonl` data to annotate. The data should at least contain a `"text"` field.                                                           |                                     |
+| `prompt_path`               | Path | Path to the `.jinja2` [prompt template](templates).                                                                                             |                                     |
+| `labels`                    | str  | Comma-separated list defining the NER labels the model should predict.                                                                          |                                     |
+| `--lang`, `-l`              | str  | Language of the input data - will be used to obtain a relevant tokenizer.                                                                       | `"en"`                              |
+| `--segment`, `-S`           | bool | Flag to set when examples should be split into sentences. By default, the full input article is shown.                                          | `False`                             |
+| `--model`, `-m`             | str  | GPT-3 model to use for initial predictions.                                                                                                     | `"text-davinci-003"`                |
+| `--prompt_path`, `-p`       | Path | Path to the `.jinja2` [prompt template](templates).                                                                                             | `./templates/textcat_prompt.jinja2` |
+| `--examples-path`, `-e`     | Path | Path to examples to help define the task. The file can be a .yml, .yaml or .json. If set to `None`, zero-shot learning is applied.              | `None`                              |
+| `--max-examples`, `-n`      | int  | Max number of examples to include in the prompt to OpenAI. If set to 0, zero-shot learning is always applied, even when examples are available. | 2                                   |
+| `--batch-size`, `-b`        | int  | Batch size of queries to send to the OpenAI API.                                                                                                | 10                                  |
+| `--exclusive-classes`, `-E` | bool | Flag to make the classification task exclusive.                                                                                                 | `False`                             |
+| `--verbose`, `-v`           | bool | Flag to print extra information to the terminal.                                                                                                | `False`                             |
+
+
+### Example usage
+
+Suppose we want to know if a particular Reddit comment talks about a food recipe.
+We'll send the text to GPT-3 and provide a prompt that explains the predictions
+we want. 
+
+```
+From the text below, determine wheter or not it contains a recipe. If it is a 
+recipe, answer "accept." If it is not a recipe, answer "reject."
+
+Your answer should only be in the following format:
+answer: <string>
+reason: <string>
+
+Text:
+"""
+Diced tomatoes, Italian sausage, onion, green pepper, mushrooms, celery, garlic,
+Italian seasoning, chili powder, and crushed chilis. On a medium high heat.
+Brown the meat. Sweat the vegetables. Add the tomatoes. Add the seasoning. Then
+allow the whole thing to reduce and darken in color. The whole thing should take
+less than 30 minutes from beginning to end.
+"""
+```
+
+For binary classification, we want GPT-3 to return "accept" if a text is a food
+recipe and "reject" otherwise. This Prodigy recipe can also handle multilabel
+and multiclass cases depending on the number of labels passed to the `--labels`
+parameter. For example, an exclusive text categorization prompt looks like this:
+
+```
+Classify the text below to any of the following labels: recipe, feedback, question.
+The task is exclusive, so only choose one label from what I provided.
+
+Your answer should only be in the following format:
+answer: <string>
+reason: <string>
+
+Text:
+"""
+What is a stick blender
+"""
+```
+
+We write these prompts as a .jinja2 template that can also take in examples for
+few-shot learning. You can create your own [template](templates) and provide it
+to the recipe with the `--prompt-path` or `-p` option.  Additionally, with
+`--examples-path` or `-e` you can set the file path of a .y(a)ml or .json file
+that contains additional examples:
+
+```bash
+python -m prodigy textcat.openai.correct my_textcat_data \
+    ./data/reddit_r_cooking_sample.jsonl \
+    --labels recipe \
+    --prompt-path ./templates/textcat_prompt.jinja2 \
+    --examples-path ./examples/textcat_binary.yaml -n 2 \
+    -F ./recipes/openai_textcat.py
+```
+
+Similar to the NER recipe, this recipe also converts the predictions into an 
+annotation task that can be rendered with Prodigy. For binary classification, we
+use the [`classification`](https://prodi.gy/docs/api-interfaces#classification)
+interface with the label and OpenAI result displayed prominently in the UI. For
+multilabel or multiclass text categorization, we use the
+[`choice`](https://prodi.gy/docs/api-interfaces#choice) annotation interface.
+
+
+You can also use the `--verbose` or `-v` flag to show the exact prompt and
+response on the terminal. 
+
+
+
 ## What's next?
 
 There’s lots of interesting follow-up experiments to this, and lots of ways to adapt the basic idea to different tasks or data sets. We’ll definitely follow up with a similar recipe for text categorization, but you can also adapt the recipe yourself in the meantime. We’re also interested to try out different prompts. It’s unclear how much the format the annotations are requested in might change the model’s predictions, or whether there’s a shorter prompt that might perform just as well. We also want to run some end-to-end experiments.
