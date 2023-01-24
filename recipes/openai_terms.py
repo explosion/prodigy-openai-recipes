@@ -122,7 +122,7 @@ def _generate_headers() -> Dict[str, str]:
     query=("Query to send to OpenAI", "positional", None, str),
     output_path=("Path to save the output", "positional", None, Path),
     seeds=("One or more comma-seperated seed phrases.","option","s",lambda d: d.split(",")),
-    n=("Number of items to generate", "option", "n", int),
+    n=("The minimum number of items to generate", "option", "n", int),
     model=("GPT-3 model to use for completion", "option", "m", str),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     verbose=("Print extra information to terminal", "flag", "v", bool),
