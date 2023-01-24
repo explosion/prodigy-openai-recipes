@@ -26,29 +26,38 @@ openai = OpenAISuggester(
 )
 
 
-@pytest.mark.parametrize("prompts", [["A single prompt"], ["A batch", "of prompts"]])
-def test_openai_response_follows_contract(httpx_mock: HTTPXMock, prompts: List[str]):
+@pytest.mark.parametrize(
+    "prompts,response_text",
+    [
+        (["A single prompt"], ["A single response"]),
+        (["A batch", "of prompts"], ["A batch", "of responses"]),
+    ],
+)
+def test_openai_response_follows_contract(
+    httpx_mock: HTTPXMock, prompts: List[str], response_text
+):
     """Test happy path where OpenAI follows the contract and we can parse it
     https://beta.openai.com/docs/api-reference/completions
     """
+
     httpx_mock.add_response(
         method="POST",
         json={
             "choices": [
                 {
-                    "text": "\n\nThis is indeed a test",
-                    "index": 0,
+                    "text": text,
+                    "index": index,
                     "logprobs": 0.1,
                     "finish_reason": "length",
                 }
+                for index, text in enumerate(response_text)
             ]
-            * len(prompts),  # Number of items in choices is equal to number of prompts
         },
     )
 
     chatgpt_response = openai._get_openai_response(prompts=prompts)
     assert len(chatgpt_response) == len(prompts)
-    assert chatgpt_response[0] == "\n\nThis is indeed a test"
+    assert set(chatgpt_response) == set(response_text)
 
 
 @pytest.mark.parametrize("error_code", openai.RETRY_ERROR_CODES)
