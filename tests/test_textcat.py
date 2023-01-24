@@ -1,11 +1,6 @@
-from pathlib import Path
-from typing import Callable, List
-
 import pytest
-import spacy
 
-from recipes.openai import OpenAISuggester, get_api_credentials, load_template
-from recipes.openai_textcat import DEFAULT_PROMPT_PATH, make_textcat_response_parser
+from recipes.openai_textcat import make_textcat_response_parser
 
 
 @pytest.mark.parametrize(
