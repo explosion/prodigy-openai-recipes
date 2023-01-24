@@ -18,7 +18,11 @@ from prodigy.util import msg
 from rich.panel import Panel
 from rich.pretty import Pretty
 
-DEFAULT_PROMPT_PATH = (
+TERMS_DEFAULT_PROMPT_PATH = (
+    Path(__file__).parent.parent / "templates" / "terms_prompt.jinja2"
+)
+
+VARIANTS_DEFAULT_PROMPT_PATH = (
     Path(__file__).parent.parent / "templates" / "variants_prompt.jinja2"
 )
 
@@ -123,6 +127,7 @@ def _generate_headers() -> Dict[str, str]:
     output_path=("Path to save the output", "positional", None, Path),
     seeds=("One or more comma-seperated seed phrases.","option","s",lambda d: d.split(",")),
     n=("The minimum number of items to generate", "option", "n", int),
+    variants=("Also generate spelling variants.", "flag", "var", bool),
     model=("GPT-3 model to use for completion", "option", "m", str),
     prompt_path=("Path to jinja2 prompt template", "option", "p", Path),
     verbose=("Print extra information to terminal", "flag", "v", bool),
@@ -140,8 +145,9 @@ def terms_openai_fetch(
     output_path: Path,
     seeds: List[str] = [],
     n: int = 100,
+    variants: bool = False,
     model: str = "text-davinci-003",
-    prompt_path: Path = DEFAULT_PROMPT_PATH,
+    prompt_path: Path = TERMS_DEFAULT_PROMPT_PATH,
     verbose: bool = False,
     resume: bool = False,
     progress: bool = False,
@@ -190,7 +196,7 @@ def terms_openai_fetch(
 
     # This recipe may overshoot the target, but we keep going until we have at least `n`
     while len(terms) < n:
-        prompt = template.render(n=n, examples=seeds + terms, description=query)
+        prompt = template.render(n=n, examples=seeds + terms, description=query, variants=variants)
         if verbose:
             rich.print(Panel(prompt, title="Prompt to OpenAI"))
 
@@ -265,7 +271,7 @@ def variants_openai_fetch(
     input_path: Union[Path, str],
     output_path: Path,
     model: str = "text-davinci-003",
-    prompt_path: Path = DEFAULT_PROMPT_PATH,
+    prompt_path: Path = VARIANTS_DEFAULT_PROMPT_PATH,
     verbose: bool = False,
     progress: bool = False,
     temperature=0.1,
