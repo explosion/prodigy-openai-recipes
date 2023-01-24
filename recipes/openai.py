@@ -205,7 +205,7 @@ class OpenAISuggester:
         """Parse the examples in the stream and set up labels
         to display in the Prodigy UI.
         """
-        stream = prodigy.components.preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
+        stream = preprocess.add_tokens(nlp, stream, skip=True)  # type: ignore
         for example in stream:
             example = copy.deepcopy(example)
             if "meta" not in example:
