@@ -162,9 +162,8 @@ The resulting model will be saved to the `hf-ner-model/` directory.
 ## `textcat.openai.correct`: Textcat annotation with zero- or few-shot learning
 
 This recipe enables us to classify texts faster with the help of a large language
-model.  It also provides a "reason" as to why a particular label was chosen.
-Similar to the `ner.openai.correct` recipe, you can flag examples as correct, or
-manually curate them. 
+model. It also provides a "reason" as to why a particular label was chosen. You can use 
+this recipe for binary, multiclass, and multilabel (non-exclusive) text categorization.
 
 ```bash
 python -m prodigy textcat.openai.correct dataset filepath labels [--options] -F ./recipes/openai_textcat.py
@@ -202,19 +201,26 @@ answer: <string>
 reason: <string>
 
 Text:
-"""
-Diced tomatoes, Italian sausage, onion, green pepper, mushrooms, celery, garlic,
-Italian seasoning, chili powder, and crushed chilis. On a medium high heat.
-Brown the meat. Sweat the vegetables. Add the tomatoes. Add the seasoning. Then
-allow the whole thing to reduce and darken in color. The whole thing should take
-less than 30 minutes from beginning to end.
-"""
 ```
 
-For binary classification, we want GPT-3 to return "accept" if a text is a food
-recipe and "reject" otherwise. This Prodigy recipe can also handle multilabel
-and multiclass cases depending on the number of labels passed to the `--labels`
-parameter. For example, an exclusive text categorization prompt looks like this:
+For binary classification, we want GPT-3 to return "accept" if a given text is a
+food recipe and "reject" otherwise. GPT-3's suggestion is then displayed
+prominently in the UI. We can press the <kbd>ACCEPT</kbd> (check mark) button to
+include the text as a positive example or press the <kbd>REJECT</kbd> (cross
+mark) button if it is a negative example.
+
+
+```sh
+python -m prodigy textcat.openai.correct my_textcat_data data/reddit_r_cooking_sample.jsonl \
+    --labels recipe \
+    --verbose \
+    -F recipes/openai_textcat.py
+```
+
+<img src="https://user-images.githubusercontent.com/12949683/214230166-ee492fe5-04da-4b93-9590-b5ef23ce488d.png" width="600"/>
+
+Let's say we want to classify Reddit comments as a recipe, a feedback, or a
+question. We can write the following prompt: 
 
 ```
 Classify the text below to any of the following labels: recipe, feedback, question.
@@ -225,10 +231,21 @@ answer: <string>
 reason: <string>
 
 Text:
-"""
-What is a stick blender
-"""
 ```
+
+Then, we can use this recipe to handle multilabel and multiclass cases by
+passing the appropriate labels to the `--labels` parameter. We should also set
+the `--exclusive-classes` flag to render a single-choice UI:
+
+```sh
+python -m prodigy textcat.openai.correct my_textcat_data data/reddit_r_cooking_sample.jsonl \
+    --labels recipe,feedback,question \
+    --verbose \
+    --exclusive-classes \
+    -F recipes/openai_textcat.py
+```
+
+<img src="https://user-images.githubusercontent.com/12949683/214230166-ee492fe5-04da-4b93-9590-b5ef23ce488d.png" width="600"/>
 
 We write these prompts as a .jinja2 template that can also take in examples for
 few-shot learning. You can create your own [template](templates) and provide it
@@ -248,12 +265,11 @@ python -m prodigy textcat.openai.correct my_textcat_data \
 Similar to the NER recipe, this recipe also converts the predictions into an 
 annotation task that can be rendered with Prodigy. For binary classification, we
 use the [`classification`](https://prodi.gy/docs/api-interfaces#classification)
-interface with the label and OpenAI result displayed prominently in the UI. For
-multilabel or multiclass text categorization, we use the
-[`choice`](https://prodi.gy/docs/api-interfaces#choice) annotation interface.
+interface with custom HTML elements, while for multilabel or multiclass text
+categorization, we use the [`choice`](https://prodi.gy/docs/api-interfaces#choice) annotation interface.
+Notice that we include the original prompt and response in the UI. 
 
-
-You can also use the `--verbose` or `-v` flag to show the exact prompt and
+Lastly, you can use the `--verbose` or `-v` flag to show the exact prompt and
 response on the terminal. 
 
 ## `textcat.openai.fetch`: Fetch text categorization examples up-front
