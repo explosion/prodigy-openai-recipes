@@ -58,7 +58,7 @@ class TextCatPromptExample(PromptExample):
         full_text = example["text"]
         reason = example["meta"].get("reason")
         if len(labels) == 1:
-            answer = "accept" if example.get("answer") else "reject"
+            answer = example.get("answer")
         else:
             answer = example.get("accept")
         return cls(text=full_text, answer=answer, reason=reason)
