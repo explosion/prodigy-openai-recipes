@@ -109,6 +109,7 @@ def make_textcat_response_parser(labels: List[str]) -> Callable:
 @prodigy.recipe(
     # fmt: off
     "textcat.openai.correct",
+    dataset=("Dataset to save answers to", "positional", None, str),
     input_path=("Path to jsonl data to annotate", "positional", None, Path),
     prompt_path=("Path to jinja2 prompt template", "positional", None, Path),
     labels=("Labels (comma delimited)", "option", "L", lambda s: s.split(",")),
