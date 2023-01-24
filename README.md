@@ -192,7 +192,7 @@ with a term list of known tricks. You might want to start with the following que
 
 ```bash
 # Base behavior, fetch at least 100 terms/phrases
-python -m prodigy terms.openai.fetch "skateboard tricks" tricks.jsonl --n 100 -F recipes/openai_terms.py
+python -m prodigy terms.openai.fetch "skateboard tricks" tricks.jsonl --n 100 --prompt-path templates/variants_prompt.jinja2 -F recipes/openai_terms.py
 ```
 
 This will generate a prompt to OpenAI that asks to try and generate at least 100 examples of "skateboard tricks".
@@ -205,7 +205,7 @@ in the right direction.
 
 ```bash
 # Base behavior but with seeds
-python -m prodigy terms.openai.fetch "skateboard tricks" tricks.jsonl --n 100 --seeds "kickflip,ollie" -F recipes/openai_terms.py
+python -m prodigy terms.openai.fetch "skateboard tricks" tricks.jsonl --n 100 --seeds "kickflip,ollie" --prompt-path templates/variants_prompt.jinja2 -F recipes/openai_terms.py
 ```
 
 Collecting many examples can take a while, so it can be helpful to show the progress, via `--progress` 
@@ -213,7 +213,7 @@ as requests are sent.
 
 ```bash
 # Adding progress output as we wait for 500 examples
-python -m prodigy terms.openai.fetch "skateboard tricks" tricks.jsonl --n 500 --progress --seeds "kickflip,ollie" -F recipes/openai_terms.py
+python -m prodigy terms.openai.fetch "skateboard tricks" tricks.jsonl --n 500 --progress --seeds "kickflip,ollie" --prompt-path templates/variants_prompt.jinja2 -F recipes/openai_terms.py
 ```
 
 After collecting a few examples, you might want to generate more. You can choose to continue from a
@@ -221,7 +221,7 @@ previous output file. This will effectively re-use those examples as seeds for t
 
 ```bash
 # Use the `--resume` flag to re-use previous examples
-python -m prodigy terms.openai.fetch "skateboard tricks" tricks.jsonl --n 50 --resume -F recipes/openai_terms.py
+python -m prodigy terms.openai.fetch "skateboard tricks" tricks.jsonl --n 50 --resume --prompt-path templates/variants_prompt.jinja2 -F recipes/openai_terms.py
 ```
 
 When the recipe is done, you'll have a `tricks.jsonl` file that has contents that look like this: 
