@@ -256,6 +256,44 @@ multilabel or multiclass text categorization, we use the
 You can also use the `--verbose` or `-v` flag to show the exact prompt and
 response on the terminal. 
 
+## `textcat.openai.fetch`: Fetch text categorization examples up-front
+
+The `textcat.openai.fetch` recipe allows us to fetch a large batch of examples
+upfront. This is helpful when you are with a highly-imbalanced data and interested
+only in rare examples.
+
+```bash
+python -m prodigy textcat.openai.fetch input_data.jsonl predictions.jsonl \
+    --labels Recipe \
+    -F ./recipes/ner.py
+```
+
+This will create a `predictions.jsonl` file that can be loaded with the
+[`textcat.manual`](https://prodi.gy/docs/recipes#textcat-manual) recipe.
+
+Note that the OpenAI API might return "429 Too Many Request" errors when
+requesting too much data at once - in this case it's best to ensure you only
+request 100 or so examples at a time and take a look at the [API's rate
+limits](https://help.openai.com/en/articles/5955598-is-api-usage-subject-to-any-rate-limits).
+
+### Working with imbalanced data
+
+The `textcat.openai.fetch` recipe is suitable for working with datasets where
+there is severe class imbalance. Usually, you'd want to find examples of the
+rare class rather than annotating a random sample. From there, you want to
+upsample them to train a decent model and so on.
+
+As it turns out, **large language models (LLMs) are effective at finding the
+rare class.** Using the [Reddit r/cooking dataset](data), we prompted ChatGPT to
+look for comments that resemble a food recipe. Instead of annotating 10,000
+examples, we ran `textcat.openai.fetch` and obtained 145 positive classes. Out
+of those 145 examples, 114 turned out to be true positives (79% precision). We
+then checked 1,000 negative examples and found 12 false negative cases (98%
+recall). 
+
+Ideally, once we fully annotated the dataset, we can train a supervised model
+that is better to use than relying on zero-shot predictions for production. The
+running cost is low and it's easier to manage.
 
 
 ## What's next?
