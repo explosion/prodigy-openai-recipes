@@ -94,7 +94,10 @@ def make_textcat_response_parser(labels: List[str]) -> Callable:
         return {
             "options": [{"id": label, "text": label} for label in labels],
             "answer": "accept",
-            "meta": {"reason": response.get("reason", "")},
+            "meta": {
+                "reason": response.get("reason", ""),
+                "chatgpt_answer": response.get("answer", ""),
+            },
             "accept": list(
                 filter(
                     None,
