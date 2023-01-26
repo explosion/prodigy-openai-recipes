@@ -163,8 +163,7 @@ The resulting model will be saved to the `hf-ner-model/` directory.
 
 This recipe enables us to classify texts faster with the help of a large
 language model. It also provides a "reason" to explain why a particular label
-was chosen. You can use this recipe for binary, multiclass, and multilabel
-(non-exclusive) text categorization.
+was chosen. 
 
 ```bash
 python -m prodigy textcat.openai.correct dataset filepath labels [--options] -F ./recipes/openai_textcat.py
@@ -187,6 +186,14 @@ python -m prodigy textcat.openai.correct dataset filepath labels [--options] -F 
 
 
 ### Example usage
+
+The `textcat` recipes can be used for binary, multiclass, and multilabel text
+categorization. You can set this by passing the appropriate number of labels in
+the `--labels` parameter; for example, passing a single label turns it into
+binary classification and so on. We will talk about each one in the proceeding
+sections.
+
+#### Binary text categorization
 
 Suppose we want to know if a particular Reddit comment talks about a food
 recipe.  We'll send the text to GPT-3 and provide a prompt that instructs the
@@ -219,6 +226,9 @@ python -m prodigy textcat.openai.correct my_textcat_data data/reddit_r_cooking_s
 
 <img src="https://user-images.githubusercontent.com/12949683/214230166-ee492fe5-04da-4b93-9590-b5ef23ce488d.png" width="600"/>
 
+
+#### Multilabel and multiclass text categorization
+
 Now, suppose we want to classify Reddit comments as a recipe, a feedback, or a
 question. We can write the following prompt: 
 
@@ -234,8 +244,8 @@ Text:
 ```
 
 Then, we can use this recipe to handle multilabel and multiclass cases by
-passing the appropriate labels to the `--labels` parameter. We should also set
-the `--exclusive-classes` flag to render a single-choice UI:
+passing the three labels to the `--labels` parameter. We should also set the
+`--exclusive-classes` flag to render a single-choice UI:
 
 ```sh
 python -m prodigy textcat.openai.correct my_textcat_data data/reddit_r_cooking_sample.jsonl \
@@ -246,6 +256,8 @@ python -m prodigy textcat.openai.correct my_textcat_data data/reddit_r_cooking_s
 ```
 
 <img src="https://user-images.githubusercontent.com/12949683/214230269-bdacbbc8-8edc-4be5-8334-0b7eaf4712e0.png" width="600" />
+
+#### Writing templates
 
 We write these prompts as a .jinja2 template that can also take in examples for
 few-shot learning. You can create your own [template](templates) and provide it
