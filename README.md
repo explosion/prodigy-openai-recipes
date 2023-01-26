@@ -283,7 +283,7 @@ only in rare examples.
 ```bash
 python -m prodigy textcat.openai.fetch input_data.jsonl predictions.jsonl \
     --labels Recipe \
-    -F ./recipes/ner.py
+    -F ./recipes/openai_textcat.py
 ```
 
 This will create a `predictions.jsonl` file that can be loaded with the
