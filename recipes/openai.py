@@ -176,7 +176,7 @@ class OpenAISuggester:
     def update(self, examples: Iterable[Dict]) -> float:
         """Update the examples that will be used in the prompt based on user flags."""
         for eg in examples:
-            if PromptExample._is_flagged(eg):
+            if PromptExample.is_flagged(eg):
                 self.add_example(
                     self.prompt_example_class.from_prodigy(eg, self.labels)
                 )
