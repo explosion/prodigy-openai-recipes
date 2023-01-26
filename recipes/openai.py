@@ -181,7 +181,7 @@ class OpenAISuggester:
         """Add an example for use in the prompts. Examples are pruned to the most recent max_examples."""
         if self.max_examples:
             self.examples.append(example)
-        if len(self.examples) >= self.max_examples:
+        if len(self.examples) > self.max_examples:
             self.examples = self.examples[-self.max_examples :]
 
     def stream_suggestions(
