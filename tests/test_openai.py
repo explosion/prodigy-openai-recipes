@@ -23,6 +23,7 @@ openai = OpenAISuggester(
     openai_n_retries=1,
     openai_read_timeout_s=1,
     openai_retry_timeout_s=1,
+    prompt_example_class=None,
 )
 
 
