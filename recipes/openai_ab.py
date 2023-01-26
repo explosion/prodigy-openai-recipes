@@ -109,8 +109,13 @@ class OpenAIPromptAB:
         if not counts:
             msg.warn("No answers found", exits=0)
         msg.divider("Evaluation results", icon="emoji")
-        pref, _ = counts.most_common(1)[0]
-        msg.good(f"You preferred {pref}")
+        # Handle edge case when both are equal:
+        nr1, nr2 = counts.most_common(2)
+        if nr1[1] == nr2[1]:
+            msg.good(f"It's a draw!")
+        else:
+            pref, _ = nr1
+            msg.good(f"You preferred {pref}")
         rows = [(name, count) for name, count in counts.most_common()]
         msg.table(rows, aligns=("l", "r"))
 
