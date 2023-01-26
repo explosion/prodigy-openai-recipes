@@ -20,6 +20,8 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 import httpx
 import jinja2
+import rich 
+from rich.panel import Panel
 
 import prodigy
 import pydantic
@@ -94,6 +96,7 @@ class OpenAIPromptAB:
                         self.display.render(**input_.prompt_args),
                         responses,
                         randomize=self.randomize,
+                        prompt_args=input_.prompt_args
                     )
 
     def on_exit(self, ctrl):
@@ -171,7 +174,7 @@ class OpenAIPromptAB:
         return [responses["choices"][i]["text"].strip() for i in range(len(prompts))]
 
     def _make_example(
-        self, id: str, input: str, responses: Dict[str, str], randomize: bool
+        self, id: str, input: str, responses: Dict[str, str], randomize: bool, prompt_args: Dict[str, Any]
     ) -> Dict:
 
         question = {
@@ -186,6 +189,7 @@ class OpenAIPromptAB:
             response_pairs = list(sorted(response_pairs))
         for name, value in response_pairs:
             question["options"].append({"id": name, "text": value})
+        question["meta"] = prompt_args
         return question
 
 
