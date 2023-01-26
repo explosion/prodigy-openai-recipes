@@ -325,6 +325,40 @@ Ideally, once we fully annotated the dataset, we can train a supervised model
 that is better to use than relying on zero-shot predictions for production. The
 running cost is low and it's easier to manage.
 
+## Exporting the annotations and training a text categorization model
+
+After you've curated a set of predictions, you can export the results with
+[`db-out`](https://prodi.gy/docs/recipes#db-out):
+
+```bash
+python -m prodigy db-out my_textcat_data  > textcat_data.jsonl
+```
+
+The format of the exported annotations contains all the data you need to train a
+smaller model downstream. Each example in the dataset contains the original
+text, the tokens, span annotations denoting the entities, etc.
+
+You can also export the data to spaCy's [binary
+format](https://spacy.io/api/data-formats#training), using
+[`data-to-spacy`](https://prodi.gy/docs/recipes#data-to-spacy). This format lets
+you load in the annotations as spaCy `Doc` objects, which can be convenient for
+further conversion. The `data-to-spacy` command also makes it easy to train a
+text categorization model with spaCy. First you export the data, specifying the
+train data as 20% of the total:
+
+```bash
+# For binary textcat
+python -m prodigy data-to-spacy ./data/annotations/ --textcat my_textcat_data -es 0.2
+# For multilabel textcat
+python -m prodigy data-to-spacy ./data/annotations/ --textcat-multilabel my_textcat_data -es 0.2
+```
+Then you can train a model with spaCy:
+
+```bash
+python -m spacy train ./data/annotations/config.cfg --paths.train ./data/annotations/train.spacy --paths.dev ./data/annotations/dev.spacy -o textcat-model
+```
+
+This will save a model to the `textcat-model/` directory.
 
 ## What's next?
 
