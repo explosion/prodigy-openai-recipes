@@ -295,6 +295,8 @@ you might have to scroll back a bit to find the current prompt.
 
 Similar to the NER recipes, you can also steer the predictions in the right direction by correcting the example and then selecting the small "flag" icon in the top right of the Prodigy UI:
 
+<img src="https://user-images.githubusercontent.com/12949683/214780178-96be66e4-8a02-4820-a51e-3e6040bcddc1.png" width="600"/>
+
 Onece you hit the <kbd>accept</kbd> button on the Prodigy interface, the flagged example will be picked up and added to the few-shot examples sent to the OpenAI API as part of the prompt.
 
 > **Note**  
