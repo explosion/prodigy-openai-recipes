@@ -1,6 +1,6 @@
 import pytest
 
-from recipes.openai_terms import _parse_terms, _parse_variants
+from recipes.openai_terms import _parse_terms
 
 # We cannot assume that `risk` is a complete game because
 # OpenAI may have exhausted the tokens
