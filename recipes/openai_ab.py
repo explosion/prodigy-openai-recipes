@@ -98,7 +98,7 @@ class OpenAIPromptAB:
 
     def on_exit(self, ctrl):
         examples = ctrl.db.get_dataset_examples(ctrl.dataset)
-        counts = Counter()
+        counts = Counter({k: 0 for k in self.prompts.keys()})
         # Get last example per ID
         for eg in examples:
             selected = eg.get("accept", [])
