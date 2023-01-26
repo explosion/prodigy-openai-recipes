@@ -125,6 +125,9 @@ class OpenAIPromptAB:
         for input_ in inputs:
             prompts.append(self._get_prompt(name1, input_.prompt_args))
             prompts.append(self._get_prompt(name2, input_.prompt_args))
+        if self.verbose:
+            for prompt in prompts:
+                rich.print(Panel(prompt, title="Prompt to OpenAI"))
         responses = self._get_responses(prompts)
         assert len(responses) == len(inputs) * 2
         output = []
