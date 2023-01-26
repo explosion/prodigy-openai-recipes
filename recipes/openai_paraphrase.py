@@ -10,6 +10,7 @@ import jinja2
 import prodigy
 import prodigy.components.db
 import prodigy.components.preprocess
+from prodigy.components.db import connect
 import prodigy.util
 import rich
 import srsly
@@ -71,7 +72,7 @@ def _retry429(
     # fmt: off
     "paraphrase.openai.fetch",
     query=("Query to send to OpenAI", "positional", None, str),
-    examples_path=("Path to .jsonl file with text examples to paraphrase", "positional", None, str),
+    examples_path=("Path to .jsonl file/Prodigy dataset with text examples to paraphrase", "positional", None, str),
     output_path=("Path to save the output", "positional", None, Path),
     n=("Number of items to generate", "option", "n", int),
     n_examples=("Number of random examples to send to OpenAI per prompt", "option", "ne", int),
@@ -119,7 +120,21 @@ def terms_openai_paraphrase(
     if best_of < n_batch:
         best_of = n_batch
 
-    examples = [e['text'] for e in prodigy.get_stream(examples_path, rehash=True, dedup=True, skip_invalid=True)]
+    # Collect stream of parents, which could be a Prodigy dataset too
+    if Path(examples_path).exists():
+        examples = [e['text'] for e in prodigy.get_stream(examples_path, rehash=True, dedup=True, skip_invalid=True)]
+    else:
+        db = connect()
+        # At this point we know it's not a file on disk, so cast to string
+        examples_path = str(examples_path)
+        if examples_path not in db.datasets:
+            msg.fail(
+                f"The value of examples_path `{examples_path}` does not exist on disk and does not exist as a dataset in Prodigy. Might be a typo?",
+                exits=True,
+            )
+        examples = db.get_dataset(examples_path)
+        examples = [ex['text'] for ex in examples if ex["answer"] == "accept"]
+
     phrases = []
 
     # Ensure we have access to correct environment variables and construct headers
@@ -154,7 +169,7 @@ def terms_openai_paraphrase(
                 "n": min(n_batch, best_of),
                 "best_of": best_of,
             },
-            timeout=30,
+            timeout=45,
         )
 
         # Catch 429: too many request errors
@@ -183,7 +198,7 @@ def terms_openai_paraphrase(
         # Make the terms list bigger and re-use terms in next prompt.
         phrases.extend(parsed_terms)
         if verbose:
-            rich.print(Panel(Pretty(phrases), title="Terms collected sofar."))
+            rich.print(Panel(Pretty(phrases), title="Variants collected sofar."))
         if progress:
             rich.print(
                 f"Received {len(parsed_terms)} items, totalling {len(phrases)} phrases. "
