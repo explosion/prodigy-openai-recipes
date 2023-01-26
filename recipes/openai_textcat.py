@@ -156,17 +156,10 @@ def textcat_openai_correct(
         )
         exclusive_classes = True
 
-    # Create partial render of the template
-    template = Template(
-        load_template(prompt_path).render(
-            exclusive_classes=exclusive_classes, labels=labels, examples=examples
-        )
-    )
-
     # Create OpenAISuggester with ChatGPT parameters
     openai = OpenAISuggester(
         response_parser=make_textcat_response_parser(labels=labels),
-        prompt_template=template,
+        prompt_template=load_template(prompt_path),
         labels=labels,
         max_examples=max_examples,
         segment=segment,
@@ -177,6 +170,7 @@ def textcat_openai_correct(
         openai_retry_timeout_s=10,
         openai_read_timeout_s=20,
         openai_n_retries=10,
+        render_vars={"exclusive_classes": exclusive_classes},
         verbose=verbose,
     )
     for eg in examples:
@@ -254,19 +248,10 @@ def textcat_openai_fetch(
         )
         exclusive_classes = True
 
-    # Create partial render of the template
-    template = Template(
-        load_template(prompt_path).render(
-            exclusive_classes=exclusive_classes,
-            labels=labels,
-            examples=examples,
-        )
-    )
-
     # Create OpenAISuggester with ChatGPT parameters
     openai = OpenAISuggester(
         response_parser=make_textcat_response_parser(labels=labels),
-        prompt_template=template,
+        prompt_template=load_template(prompt_path),
         labels=labels,
         max_examples=max_examples,
         segment=segment,
@@ -277,6 +262,7 @@ def textcat_openai_fetch(
         openai_retry_timeout_s=10,
         openai_read_timeout_s=20,
         openai_n_retries=10,
+        render_vars={"exclusive_classes": exclusive_classes},
         verbose=verbose,
     )
     for eg in examples:

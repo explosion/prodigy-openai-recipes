@@ -5,7 +5,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 import httpx
 import jinja2
@@ -80,6 +80,10 @@ class OpenAISuggester:
     response_parser (Callable[str] -> Dict): A function that accepts a string that represents
         ChatGPT's raw response, and parses it into a dictionary that is compatible to Prodigy's
         annotation interfaces.
+    render_vars (Dict[str, Any]): A dictionary containing additional variables to render in the
+        Jinja2 template. By default, the Jinja2 template will render the text (str), some labels (List[str]),
+        and examples (PromptExample). If you wish to add other task-specific variables, you should supply
+        them in this variable.
     """
 
     prompt_template: jinja2.Template
@@ -98,6 +102,7 @@ class OpenAISuggester:
     openai_n: int
     examples: List[PromptExample]
     response_parser: Callable
+    render_vars: Optional[Dict[str, Any]]
 
     OPENAI_COMPLETIONS_ENDPOINT: str = "https://api.openai.com/v1/completions"
     RETRY_ERROR_CODES: List[str] = [429, 503]
@@ -119,6 +124,7 @@ class OpenAISuggester:
         openai_read_timeout_s: int = 30,
         openai_n_retries: int = 10,
         openai_n: int = 1,
+        render_vars: Optional[Dict[str, Any]] = None,
         verbose: bool = False,
     ):
         self.prompt_template = prompt_template
@@ -137,6 +143,7 @@ class OpenAISuggester:
         self.openai_n = openai_n
         self.openai_n_retries = openai_n_retries
         self.response_parser = response_parser
+        self.render_vars = render_vars
 
     def __call__(
         self,
@@ -219,7 +226,9 @@ class OpenAISuggester:
         self, text: str, labels: List[str], examples: List[PromptExample]
     ) -> List[str]:
         """Generate a prompt for ChatGPT OpenAI."""
-        return self.prompt_template.render(text=text, labels=labels, examples=examples)
+        return self.prompt_template.render(
+            text=text, labels=labels, examples=examples, **self.render_vars
+        )
 
     def _get_openai_response(self, prompts: List[str]) -> List[str]:
         headers = {
