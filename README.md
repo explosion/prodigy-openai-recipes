@@ -106,10 +106,14 @@ in the top right of the Prodigy UI:
 <img src="https://user-images.githubusercontent.com/8796347/208485453-861fdecf-6283-4a8f-b802-58314f3e496d.png" width="600" />
 
 Once you hit <kbd>accept</kbd> on the Prodigy interface, the flagged example will be automatically picked up and added to the examples
-that are sent to the OpenAI API as part of the prompt. Note that because Prodigy batches these requests,
-the prompt will be updated with a slight delay, after the next batch of prompts is sent to OpenAI.
-You can experiment with making the batch size (`--batch-size` or `-b`) smaller to have the change come into effect sooner,
-but this might negatively impact the speed of the annotation workflow.
+that are sent to the OpenAI API as part of the prompt.
+
+> **Note**  
+> Because Prodigy batches these requests, the prompt will be updated with a slight
+> delay, after the next batch of prompts is sent to OpenAI. You can experiment
+> with making the batch size (`--batch-size` or `-b`) smaller to have the change
+> come into effect sooner, but this might negatively impact the speed of the
+> annotation workflow.
 
 ## `ner.openai.fetch`: Fetch examples up-front
 
