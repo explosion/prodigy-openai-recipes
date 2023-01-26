@@ -257,7 +257,7 @@ python -m prodigy textcat.openai.correct my_textcat_data data/reddit_r_cooking_s
 
 <img src="https://user-images.githubusercontent.com/12949683/214230269-bdacbbc8-8edc-4be5-8334-0b7eaf4712e0.png" width="600" />
 
-#### Writing templates
+### Writing templates
 
 We write these prompts as a .jinja2 template that can also take in examples for
 few-shot learning. You can create your own [template](templates) and provide it
@@ -285,6 +285,20 @@ Notice that we include the original prompt and ChatGPT's response in the UI.
 Lastly, you can use the `--verbose` or `-v` flag to show the exact prompt and
 response on the terminal. Note that because the requests to the API are batched,
 you might have to scroll back a bit to find the current prompt.
+
+
+### Interactively tune the prompt examples
+
+Similar to the NER recipes, you can also steer the predictions in the right direction by correcting the example and then selecting the small "flag" icon in the top right of the Prodigy UI:
+
+Onece you hit the <kbd>accept</kbd> button on the Prodigy interface, the flagged example will be picked up and added to the few-shot examples sent to the OpenAI API as part of the prompt.
+
+> **Note**
+> Because Prodigy batches these requests, the prompt will be updated with a slight
+> delay, after the next batch of prompts is sent to OpenAI. You can experiment
+> with making the batch size (`--batch-size` or `-b`) smaller to have the change
+> come into effect sooner, but this might negatively impact the speed of the
+> annotation workflow.
 
 ## `textcat.openai.fetch`: Fetch text categorization examples up-front
 
