@@ -69,6 +69,7 @@ class OpenAIPromptAB:
         openai_max_tokens: int = 500,
         openai_timeout_s: int = 50,
         openai_n: int = 1,
+        repeat: int = 3
     ):
         self.display = display
         self.inputs = inputs
@@ -83,17 +84,19 @@ class OpenAIPromptAB:
         self.openai_timeout_s = openai_timeout_s
         self.openai_n = openai_n
         self.randomize = randomize
+        self.repeat = repeat
 
     def __iter__(self) -> Iterable[Dict]:
         for input_batch in _batch_sequence(self.inputs, self.batch_size):
-            response_batch = self._get_response_batch(input_batch)
-            for input_, responses in zip(input_batch, response_batch):
-                yield self._make_example(
-                    input_.id,
-                    self.display.render(**input_.prompt_args),
-                    responses,
-                    randomize=self.randomize,
-                )
+            for _ in range(self.repeat):
+                response_batch = self._get_response_batch(input_batch)
+                for input_, responses in zip(input_batch, response_batch):
+                    yield self._make_example(
+                        input_.id,
+                        self.display.render(**input_.prompt_args),
+                        responses,
+                        randomize=self.randomize,
+                    )
 
     def progress(self) -> float:
         return 0.0
@@ -162,7 +165,7 @@ class OpenAIPromptAB:
         )
         r.raise_for_status()
         responses = r.json()
-        return [responses["choices"][i]["text"] for i in range(len(prompts))]
+        return [responses["choices"][i]["text"].strip() for i in range(len(prompts))]
 
     def _make_example(
         self, id: str, input: str, responses: Dict[str, str], randomize: bool
@@ -184,36 +187,19 @@ class OpenAIPromptAB:
 
 
 @prodigy.recipe(
+    # fmt: off
     "ab.openai.prompts",
     dataset=("Dataset to save answers to", "positional", None, str),
     inputs_path=("Path to jsonl inputs", "positional", None, Path),
-    display_template_path=(
-        "Template for summarizing the arguments",
-        "positional",
-        None,
-        Path,
-    ),
-    prompt1_template_path=(
-        "The first jinja2 prompt template",
-        "positional",
-        None,
-        Path,
-    ),
-    prompt2_template_path=(
-        "Path to second jinja2 prompt template",
-        "positional",
-        None,
-        Path,
-    ),
+    display_template_path=("Template for summarizing the arguments","positional", None, Path),
+    prompt1_template_path=("The first jinja2 prompt template","positional", None, Path),
+    prompt2_template_path=("Path to second jinja2 prompt template","positional", None, Path),
     model=("GPT-3 model to use for responses", "option", "m", str),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
     verbose=("Print extra information to terminal", "flag", "v", bool),
-    no_random=(
-        "Don't randomize which annotation is shown as correct",
-        "flag",
-        "NR",
-        bool,
-    ),
+    no_random=("Don't randomize which annotation is shown as correct","flag","NR",bool,),
+    repeat=("How often to send the same prompt to OpenAI", "option", "r", int)
+    # fmt: on
 )
 def ab_openai_prompts(
     dataset: str,
@@ -225,6 +211,7 @@ def ab_openai_prompts(
     batch_size: int = 10,
     verbose: bool = False,
     no_random: bool = False,
+    repeat: int = 1,
 ):
     api_key, api_org = _get_api_credentials(model)
     inputs = [PromptInput(**x) for x in cast(List[Dict], srsly.read_jsonl(inputs_path))]
@@ -246,6 +233,7 @@ def ab_openai_prompts(
         verbose=verbose,
         randomize=not no_random,
         openai_temperature=0.9,
+        repeat=repeat
     )
     return {
         "dataset": dataset,
@@ -255,15 +243,9 @@ def ab_openai_prompts(
         "config": {
             "batch_size": batch_size,
             "exclude_by": "input",
-            "show_flag": True,
+            "global_css": ".prodigy-content{line-height: 1.2;};"
         },
     }
-
-
-# These helpers are cut and paste from the NER recipe. I'm preferring to keep
-# the recipes independent for now, to make things more hackable for folks cloning
-# the repo.
-
 
 def _get_api_credentials(model: str) -> Tuple[str, str]:
     # Fetch and check the key
