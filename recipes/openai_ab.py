@@ -96,9 +96,6 @@ class OpenAIPromptAB:
                         randomize=self.randomize,
                     )
 
-    def progress(self) -> float:
-        return 0.0
-
     def on_exit(self, ctrl):
         examples = ctrl.db.get_dataset_examples(ctrl.dataset)
         counts = Counter()
