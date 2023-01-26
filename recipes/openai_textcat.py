@@ -60,7 +60,7 @@ class TextCatPromptExample(PromptExample):
         if len(labels) == 1:
             answer = example.get("answer")
         else:
-            answer = example.get("accept")
+            answer = ",".join(example.get("accept"))
         return cls(text=full_text, answer=answer, reason=reason)
 
 
