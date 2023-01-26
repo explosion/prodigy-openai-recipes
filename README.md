@@ -293,7 +293,7 @@ Similar to the NER recipes, you can also steer the predictions in the right dire
 
 Onece you hit the <kbd>accept</kbd> button on the Prodigy interface, the flagged example will be picked up and added to the few-shot examples sent to the OpenAI API as part of the prompt.
 
-> **Note**
+> **Note**  
 > Because Prodigy batches these requests, the prompt will be updated with a slight
 > delay, after the next batch of prompts is sent to OpenAI. You can experiment
 > with making the batch size (`--batch-size` or `-b`) smaller to have the change
