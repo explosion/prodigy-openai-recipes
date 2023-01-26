@@ -103,6 +103,7 @@ class OpenAISuggester:
     examples: List[PromptExample]
     response_parser: Callable
     render_vars: Optional[Dict[str, Any]]
+    prompt_example_class: PromptExample
 
     OPENAI_COMPLETIONS_ENDPOINT: str = "https://api.openai.com/v1/completions"
     RETRY_ERROR_CODES: List[str] = [429, 503]
@@ -118,13 +119,14 @@ class OpenAISuggester:
         openai_api_key: str,
         openai_model: str,
         response_parser: Callable,
+        prompt_example_class: PromptExample,
         openai_temperature: int = 0,
         openai_max_tokens: int = 500,
         openai_retry_timeout_s: int = 1,
         openai_read_timeout_s: int = 30,
         openai_n_retries: int = 10,
         openai_n: int = 1,
-        render_vars: Optional[Dict[str, Any]] = None,
+        render_vars: Optional[Dict[str, Any]] = {},
         verbose: bool = False,
     ):
         self.prompt_template = prompt_template
@@ -143,6 +145,7 @@ class OpenAISuggester:
         self.openai_n = openai_n
         self.openai_n_retries = openai_n_retries
         self.response_parser = response_parser
+        self.prompt_example_class = prompt_example_class
         self.render_vars = render_vars
 
     def __call__(
@@ -173,13 +176,15 @@ class OpenAISuggester:
     def update(self, examples: Iterable[Dict]) -> float:
         """Update the examples that will be used in the prompt based on user flags."""
         for eg in examples:
-            if PromptExample.is_flagged(eg):
-                self.add_example(PromptExample.from_prodigy(eg, self.label))
+            if PromptExample._is_flagged(eg):
+                self.add_example(
+                    self.prompt_example_class.from_prodigy(eg, self.labels)
+                )
         return 0.0
 
     def add_example(self, example: PromptExample) -> None:
         """Add an example for use in the prompts. Examples are pruned to the most recent max_examples."""
-        if self.max_examples:
+        if self.max_examples and example:
             self.examples.append(example)
         if len(self.examples) > self.max_examples:
             self.examples = self.examples[-self.max_examples :]
