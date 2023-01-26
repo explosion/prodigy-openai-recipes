@@ -174,12 +174,12 @@ class OpenAIPromptAB:
         return [responses["choices"][i]["text"].strip() for i in range(len(prompts))]
 
     def _make_example(
-        self, id_str: str, input_str: str, responses: Dict[str, str], randomize: bool, prompt_args: Dict[str, Any]
+        self, id_str: str, input: str, responses: Dict[str, str], randomize: bool, prompt_args: Dict[str, Any]
     ) -> Dict:
 
         question = {
             "id": id_str,
-            "text": input_str,
+            "text": input,
             "options": [],
         }
         response_pairs = list(responses.items())
@@ -319,7 +319,7 @@ def _load_template(path: Path) -> jinja2.Template:
     # that stuff worthwhile.
     if not path.suffix == ".jinja2":
         msg.fail(
-            "The parameter expects a .jinja2 file.",
+            f"The parameter expects a .jinja2 file. Received path='{path}'",
             exits=1,
         )
     with path.open("r", encoding="utf8") as file_:
