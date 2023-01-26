@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional, cast
 
 import prodigy
 import spacy
@@ -113,7 +113,7 @@ def make_textcat_response_parser(labels: List[str]) -> Callable:
     # fmt: off
     "textcat.openai.correct",
     dataset=("Dataset to save answers to", "positional", None, str),
-    input_path=("Path to jsonl data to annotate", "positional", None, Path),
+    filepath=("Path to jsonl data to annotate", "positional", None, Path),
     labels=("Labels (comma delimited)", "option", "L", lambda s: s.split(",")),
     lang=("Language to initialize spaCy model", "option", "l", str),
     model=("GPT-3 model to use for completion", "option", "m", str),
@@ -128,7 +128,7 @@ def make_textcat_response_parser(labels: List[str]) -> Callable:
 )
 def textcat_openai_correct(
     dataset: str,
-    input_path: Path,
+    filepath: Path,
     labels: List[str] = None,
     lang: str = "en",
     model: str = "text-davinci-003",
@@ -175,9 +175,16 @@ def textcat_openai_correct(
     )
     for eg in examples:
         openai.add_example(eg)
+    if max_examples >= 1:
+        db = prodigy.components.db.connect()
+        db_examples = db.get_dataset(dataset)
+        if db_examples:
+            for eg in db_examples:
+                if PromptExample.is_flagged(eg):
+                    openai.add_example(PromptExample.from_prodigy(eg, openai.labels))
 
     # Set up the stream
-    stream = list(srsly.read_jsonl(input_path))
+    stream = prodigy.get_stream(filepath)
     stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
 
     # Set up the Prodigy UI
@@ -204,7 +211,7 @@ def textcat_openai_correct(
 @prodigy.recipe(
     # fmt: off
     "textcat.openai.fetch",
-    input_path=("Path to jsonl data to annotate", "positional", None, Path),
+    filepath=("Path to jsonl data to annotate", "positional", None, Path),
     output_path=("Path to save the output", "positional", None, Path),
     labels=("Labels (comma delimited)", "option", "L", lambda s: s.split(",")),
     lang=("Language to use for tokenizer.", "option", "l", str),
@@ -219,7 +226,7 @@ def textcat_openai_correct(
     # fmt: on
 )
 def textcat_openai_fetch(
-    input_path: Path,
+    filepath: Path,
     output_path: Path,
     labels: List[str] = None,
     lang: str = "en",
@@ -269,6 +276,6 @@ def textcat_openai_fetch(
         openai.add_example(eg)
 
     # Set up the stream
-    stream = list(srsly.read_jsonl(input_path))
+    stream = prodigy.get_stream(filepath)
     stream = openai(tqdm.tqdm(stream), batch_size=batch_size, nlp=nlp)
     srsly.write_jsonl(output_path, stream)
