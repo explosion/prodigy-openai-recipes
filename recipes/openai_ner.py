@@ -1,4 +1,5 @@
 import copy
+import json
 import os
 import sys
 import time
@@ -48,6 +49,7 @@ HTML_TEMPLATE = """
 </div>
 """
 
+
 @dataclass
 class PromptExample:
     """An example to be passed into an OpenAI NER prompt."""
@@ -83,6 +85,10 @@ class PromptExample:
                 entities_by_label[label].append(mention)
 
         return cls(text=full_text, entities=entities_by_label)
+
+
+class OutputParseError(Exception):
+    pass
 
 
 def _normalize_label(label: str) -> str:
@@ -256,11 +262,18 @@ class OpenAISuggester:
         output = []
         for line in text.strip().split("\n"):
             if line and ":" in line:
-                label, phrases = line.split(":", 1)
+                label, phrases_json = line.split(":", 1)
                 label = _normalize_label(label)
-                if phrases.strip():
-                    phrases = [phrase.strip() for phrase in phrases.strip().split(",")]
-                    output.append((label, phrases))
+                if phrases_json.strip():
+                    try:
+                        phrases = json.loads(phrases_json)
+                        output.append((label, phrases))
+                    except json.JSONDecodeError:
+                        # The model could output invalid json formatting here
+                        # Should we log this somewhere or assume it is fatal?
+                        raise OutputParseError(
+                            f"Invalid JSON in model output for label {label}: {phrases_json}"
+                        )
         return output
 
     @classmethod

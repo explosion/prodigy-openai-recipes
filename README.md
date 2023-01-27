@@ -65,9 +65,9 @@ to the language model the type of predictions we want. Something like:
 
 ```
 From the text below, extract the following entities in the following format:
-dish: <comma delimited list of strings>
-ingredient: <comma delimited list of strings>
-equipment: <comma delimited list of strings>
+dish: <JSON list of strings>
+ingredient: <JSON list of strings>
+equipment: <JSON list of strings>
 
 Text:
 ...

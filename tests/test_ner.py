@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -43,9 +44,9 @@ def test_template_no_examples():
         prompt
         == f"""
 From the text below, extract the following entities in the following format:
-PERSON: <comma delimited list of strings>
-PLACE: <comma delimited list of strings>
-PERIOD: <comma delimited list of strings>
+PERSON: <JSON list of strings>
+PLACE: <JSON list of strings>
+PERIOD: <JSON list of strings>
 
 Text:
 \"\"\"
@@ -77,9 +78,9 @@ def test_template_two_examples():
         prompt
         == f"""
 From the text below, extract the following entities in the following format:
-PERSON: <comma delimited list of strings>
-PLACE: <comma delimited list of strings>
-PERIOD: <comma delimited list of strings>
+PERSON: <JSON list of strings>
+PLACE: <JSON list of strings>
+PERIOD: <JSON list of strings>
 
 Text:
 \"\"\"
@@ -92,14 +93,14 @@ Text:
 \"\"\"
 New York is a large city.
 \"\"\"
-PLACE: New York
+PLACE: ["New York"]
 
 Text:
 \"\"\"
 David Hasslehoff and Helena Fischer are big in Germany.
 \"\"\"
-PERSON: David Hasslehoff, Helena Fischer
-PLACE: Germany
+PERSON: ["David Hasslehoff", "Helena Fischer"]
+PLACE: ["Germany"]
 
 """.lstrip()
     )
@@ -169,7 +170,7 @@ def _get_response(text: str, labels, spans: List[Tuple[str, int, int]]) -> str:
         spans_by_label[label].append(text[start_chars[start] : end_chars[end - 1]])
     response_lines = []
     for label in labels:
-        response_lines.append(f"{label}: {', '.join(spans_by_label[label])}")
+        response_lines.append(f"{label}: {json.dumps(spans_by_label[label])}")
     return "\n".join(response_lines)
 
 
