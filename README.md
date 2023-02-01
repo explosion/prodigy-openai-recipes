@@ -181,7 +181,7 @@ python -m prodigy textcat.openai.correct dataset filepath labels [--options] -F 
 | `--lang`, `-l`              | str  | Language of the input data - will be used to obtain a relevant tokenizer.                                                                       | `"en"`                              |
 | `--segment`, `-S`           | bool | Flag to set when examples should be split into sentences. By default, the full input article is shown.                                          | `False`                             |
 | `--model`, `-m`             | str  | GPT-3 model to use for initial predictions.                                                                                                     | `"text-davinci-003"`                |
-| `--prompt_path`, `-p`       | Path | Path to the `.jinja2` [prompt template](templates).                                                                                             | `./templates/textcat_prompt.jinja2` |
+| `--prompt-path`, `-p`       | Path | Path to the `.jinja2` [prompt template](templates).                                                                                             | `./templates/textcat_prompt.jinja2` |
 | `--examples-path`, `-e`     | Path | Path to examples to help define the task. The file can be a .yml, .yaml or .json. If set to `None`, zero-shot learning is applied.              | `None`                              |
 | `--max-examples`, `-n`      | int  | Max number of examples to include in the prompt to OpenAI. If set to 0, zero-shot learning is always applied, even when examples are available. | 2                                   |
 | `--batch-size`, `-b`        | int  | Batch size of queries to send to the OpenAI API.                                                                                                | 10                                  |
@@ -333,8 +333,8 @@ there is severe class imbalance. Usually, you'd want to find examples of the
 rare class rather than annotating a random sample. From there, you want to
 upsample them to train a decent model and so on.
 
-As it turns out, **large language models (LLMs) are effective at finding the
-rare class.** Using the [Reddit r/cooking dataset](data), we prompted ChatGPT to
+This is where large language models like OpenAI might help.
+Using the [Reddit r/cooking dataset](data), we prompted ChatGPT to
 look for comments that resemble a food recipe. Instead of annotating 10,000
 examples, we ran `textcat.openai.fetch` and obtained 145 positive classes. Out
 of those 145 examples, 114 turned out to be true positives (79% precision). We
