@@ -5,8 +5,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import (Callable, Dict, Iterable, List, Optional, Tuple, TypeVar,
-                    cast)
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, TypeVar, cast
 
 import httpx
 import jinja2
@@ -272,8 +271,10 @@ class OpenAISuggester:
                 label = _normalize_label(label)
                 if label in self.labels:
                     if phrases.strip():
-                        phrases = [phrase.strip() for phrase in phrases.strip().split(",")]
-                        output.append((label, phrases))
+                        parsed_phrases = [
+                            phrase.strip() for phrase in phrases.strip().split(",")
+                        ]
+                        output.append((label, parsed_phrases))
         return output
 
 

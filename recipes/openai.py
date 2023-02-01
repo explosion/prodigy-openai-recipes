@@ -44,7 +44,7 @@ class PromptExample(abc.ABC):
             and "text" in example
         )
 
-    @abc.abstractclassmethod
+    @abc.abstractmethod
     def from_prodigy(cls, example: Dict, labels: Iterable[str]) -> "PromptExample":
         """Create a prompt example from Prodigy's format."""
         pass

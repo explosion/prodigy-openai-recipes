@@ -267,6 +267,7 @@ def textcat_openai_fetch(
         openai_read_timeout_s=20,
         openai_n_retries=10,
         render_vars={"exclusive_classes": exclusive_classes},
+        prompt_example_class=TextCatPromptExample,
         verbose=verbose,
     )
     for eg in examples:
