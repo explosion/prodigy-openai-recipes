@@ -1,17 +1,15 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, cast
+from typing import Callable, Dict, List, Optional
 
 import prodigy
 import spacy
 import srsly
 import tqdm
 from dotenv import load_dotenv
-from jinja2 import Template
 from prodigy.util import msg
-from spacy.language import Language
 
-from recipes.openai import OpenAISuggester, PromptExample, get_api_credentials
+from recipes.openai import _ItemT, OpenAISuggester, PromptExample, get_api_credentials
 from recipes.openai import load_template, normalize_label
 from recipes.openai import read_prompt_examples
 
@@ -50,7 +48,7 @@ class TextCatPromptExample(PromptExample):
     reason: str
 
     @classmethod
-    def from_prodigy(cls, example: Dict, labels: List[str]) -> "PromptExample":
+    def from_prodigy(cls, example: _ItemT, labels: List[str]) -> "PromptExample":
         """Create a prompt example from Prodigy's format."""
         if "text" not in example:
             raise ValueError("Cannot make PromptExample without text")

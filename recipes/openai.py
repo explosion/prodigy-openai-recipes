@@ -9,7 +9,6 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, T
 
 import httpx
 import jinja2
-import prodigy
 import rich
 import srsly
 from prodigy.components import preprocess
@@ -35,7 +34,7 @@ class PromptExample(abc.ABC):
     """
 
     @staticmethod
-    def is_flagged(example: Dict) -> bool:
+    def is_flagged(example: _ItemT) -> bool:
         """Check whether a Prodigy example is flagged for use
         in the prompt."""
 
@@ -46,7 +45,7 @@ class PromptExample(abc.ABC):
         )
 
     @classmethod
-    def from_prodigy(cls, example: Dict, labels: Iterable[str]) -> "PromptExample":
+    def from_prodigy(cls, example: _ItemT, labels: Iterable[str]) -> "PromptExample":
         """Create a prompt example from Prodigy's format."""
         ...
 
