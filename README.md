@@ -149,7 +149,7 @@ You can also export the data to spaCy's [binary format](https://spacy.io/api/dat
 python -m prodigy data-to-spacy ./data/annotations/ --ner my_ner_data -es 0.2
 ```
 
-Then you can train a model with spaCy:
+Then you can train a model with spaCy or [Prodigy](https://prodi.gy/docs/recipes/#training):
 
 ```bash
 python -m spacy train ./data/annotations/config.cfg --paths.train ./data/annotations/train.spacy --paths.dev ./data/annotations/dev.spacy -o ner-model
@@ -376,7 +376,7 @@ python -m prodigy data-to-spacy ./data/annotations/ --textcat my_textcat_data -e
 # For multilabel textcat
 python -m prodigy data-to-spacy ./data/annotations/ --textcat-multilabel my_textcat_data -es 0.2
 ```
-Then you can train a model with spaCy:
+Then you can train a model with spaCy or [Prodigy](https://prodi.gy/docs/recipes/#training):
 
 ```bash
 python -m spacy train ./data/annotations/config.cfg --paths.train ./data/annotations/train.spacy --paths.dev ./data/annotations/dev.spacy -o textcat-model
