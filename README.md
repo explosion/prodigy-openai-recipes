@@ -269,7 +269,8 @@ We write these prompts as a .jinja2 template that can also take in examples for
 few-shot learning. You can create your own [template](templates) and provide it
 to the recipe with the `--prompt-path` or `-p` option.  Additionally, with
 `--examples-path` or `-e` you can set the file path of a .y(a)ml or .json file
-that contains additional examples:
+that contains additional examples. You can also add context in these examples as
+we observed it to improve the output:
 
 ```bash
 python -m prodigy textcat.openai.correct my_binary_textcat_data \
