@@ -5,7 +5,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar
 
 import httpx
 import jinja2
@@ -18,6 +18,7 @@ from rich.panel import Panel
 from spacy.language import Language
 
 _ItemT = TypeVar("_ItemT")
+_PromptT = TypeVar("_PromptT", bound="PromptExample")
 
 
 @dataclass
@@ -44,10 +45,10 @@ class PromptExample(abc.ABC):
             and "text" in example
         )
 
-    @abc.abstractmethod
+    @classmethod
     def from_prodigy(cls, example: Dict, labels: Iterable[str]) -> "PromptExample":
         """Create a prompt example from Prodigy's format."""
-        pass
+        ...
 
 
 def normalize_label(label: str) -> str:
@@ -102,7 +103,7 @@ class OpenAISuggester:
     openai_n: int
     examples: List[PromptExample]
     response_parser: Callable
-    render_vars: Optional[Dict[str, Any]]
+    render_vars: Dict[str, Any]
     prompt_example_class: PromptExample
 
     OPENAI_COMPLETIONS_ENDPOINT: str = "https://api.openai.com/v1/completions"
@@ -126,7 +127,7 @@ class OpenAISuggester:
         openai_read_timeout_s: int = 30,
         openai_n_retries: int = 10,
         openai_n: int = 1,
-        render_vars: Optional[Dict[str, Any]] = {},
+        render_vars: Optional[Dict[str, Any]] = None,
         verbose: bool = False,
     ):
         self.prompt_template = prompt_template
@@ -146,34 +147,36 @@ class OpenAISuggester:
         self.openai_n_retries = openai_n_retries
         self.response_parser = response_parser
         self.prompt_example_class = prompt_example_class
-        self.render_vars = render_vars
+        self.render_vars = {} if render_vars is None else render_vars
 
     def __call__(
         self,
-        stream: Iterable[Dict],
+        stream: Iterable[_ItemT],
         *,
         nlp: Language,
         batch_size: int,
         **kwargs,
-    ) -> Iterable[Dict]:
+    ) -> Iterable[_ItemT]:
         if self.segment:
-            stream = preprocess.split_sentences(nlp, stream)
+            stream = preprocess.split_sentences(nlp, stream)  # type: ignore
 
         stream = self.pipe(stream, nlp, batch_size, **kwargs)
         stream = self.set_hashes(stream)
         return stream
 
-    def pipe(self, stream: Iterable[Dict], nlp: Language, batch_size: int, **kwargs):
+    def pipe(
+        self, stream: Iterable[_ItemT], nlp: Language, batch_size: int, **kwargs
+    ) -> Iterable[_ItemT]:
         """Process the stream and add suggestions from OpenAI."""
         stream = self.stream_suggestions(stream, batch_size)
         stream = self.format_suggestions(stream, nlp=nlp)
         return stream
 
-    def set_hashes(self, stream: Iterable[Dict]):
+    def set_hashes(self, stream: Iterable[_ItemT]) -> Iterable[_ItemT]:
         for example in stream:
             yield set_hashes(example)
 
-    def update(self, examples: Iterable[Dict]) -> float:
+    def update(self, examples: Iterable[_ItemT]) -> float:
         """Update the examples that will be used in the prompt based on user flags."""
         for eg in examples:
             if PromptExample.is_flagged(eg):
@@ -190,8 +193,8 @@ class OpenAISuggester:
             self.examples = self.examples[-self.max_examples :]
 
     def stream_suggestions(
-        self, stream: Iterable[Dict], batch_size: int
-    ) -> Iterable[Dict]:
+        self, stream: Iterable[_ItemT], batch_size: int
+    ) -> Iterable[_ItemT]:
         """Get zero-shot or few-shot annotations from OpenAI.
 
         Given a stream of input examples, we define a prompt, get a response from OpenAI,
@@ -212,8 +215,8 @@ class OpenAISuggester:
                 yield eg
 
     def format_suggestions(
-        self, stream: Iterable[Dict], *, nlp: Language
-    ) -> Iterable[Dict]:
+        self, stream: Iterable[_ItemT], *, nlp: Language
+    ) -> Iterable[_ItemT]:
         """Parse the examples in the stream and set up labels
         to display in the Prodigy UI.
         """
@@ -263,7 +266,7 @@ class OpenAISuggester:
         return [responses["choices"][i]["text"] for i in range(len(prompts))]
 
 
-def get_api_credentials(model: str = None) -> Tuple[str, str]:
+def get_api_credentials(model: Optional[str] = None) -> Tuple[str, str]:
     # Fetch and check the key
     api_key = os.getenv("OPENAI_KEY")
     if api_key is None:
@@ -323,7 +326,7 @@ def get_api_credentials(model: str = None) -> Tuple[str, str]:
 
 
 def read_prompt_examples(
-    path: Optional[Path], *, example_class: PromptExample
+    path: Optional[Path], *, example_class: Type[PromptExample]
 ) -> List[PromptExample]:
     if path is None:
         return []
@@ -384,7 +387,7 @@ def retry(
 
 
 def read_yaml_examples(
-    path: Path, *, example_class: PromptExample
+    path: Path, *, example_class: Type[PromptExample]
 ) -> List[PromptExample]:
     data = srsly.read_yaml(path)
     if not isinstance(data, list):
