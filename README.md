@@ -228,10 +228,7 @@ mark) button if it is a negative example.
 
 
 ```sh
-python -m prodigy textcat.openai.correct my_textcat_data data/reddit_r_cooking_sample.jsonl \
-    --labels recipe \
-    --verbose \
-    -F recipes/openai_textcat.py
+python -m prodigy textcat.openai.correct my_textcat_data data/reddit_r_cooking_sample.jsonl --labels recipe -F recipes/openai_textcat.py
 ```
 
 <img src="https://user-images.githubusercontent.com/12949683/214230166-ee492fe5-04da-4b93-9590-b5ef23ce488d.png" width="600"/>
@@ -260,7 +257,6 @@ passing the three labels to the `--labels` parameter. We should also set the
 ```sh
 python -m prodigy textcat.openai.correct my_textcat_data data/reddit_r_cooking_sample.jsonl \
     --labels recipe,feedback,question \
-    --verbose \
     --exclusive-classes \
     -F recipes/openai_textcat.py
 ```
@@ -319,9 +315,7 @@ upfront. This is helpful when you are with a highly-imbalanced data and interest
 only in rare examples.
 
 ```bash
-python -m prodigy textcat.openai.fetch input_data.jsonl predictions.jsonl \
-    --labels Recipe \
-    -F ./recipes/openai_textcat.py
+python -m prodigy textcat.openai.fetch input_data.jsonl predictions.jsonl --labels Recipe -F ./recipes/openai_textcat.py
 ```
 
 This will create a `predictions.jsonl` file that can be loaded with the
