@@ -1,3 +1,5 @@
+<a href="https://explosion.ai"><img src="https://explosion.ai/assets/img/logo.svg" width="125" height="125" align="right" /></a>
+
 # Prodigy OpenAI recipes
 
 This repository contains example code on how to combine **zero- and few-shot learning
@@ -11,7 +13,7 @@ our exact needs and use-case.
 
 https://user-images.githubusercontent.com/13643239/208504034-0ab6bcbe-6d2b-415d-8257-233f2074ba31.mp4
 
-## Setup and Install
+## ⏳ Setup and Install
 
 Make sure to [install Prodigy](https://prodi.gy/docs/install) as well as a few additional Python dependencies:
 
@@ -32,7 +34,9 @@ OPENAI_ORG = "org-..."
 OPENAI_KEY = "sk-..."
 ```
 
-## `ner.openai.correct`: NER annotation with zero- or few-shot learning
+## 📋 Named-entity recognition (NER)
+
+### `ner.openai.correct`: NER annotation with zero- or few-shot learning
 
 This recipe marks entity predictions obtained from a large language model and allows you to flag them as correct, or to
 manually curate them. This allows you to quickly gather a gold-standard dataset through zero-shot or few-shot learning.
@@ -57,7 +61,7 @@ python -m prodigy ner.openai.correct dataset filepath labels [--options] -F ./re
 | `--batch-size`, `-b`    | int  | Batch size of queries to send to the OpenAI API.                                                                                                | 10                              |
 | `--verbose`, `-v`       | bool | Flag to print extra information to the terminal.                                                                                                | `False`                         |
 
-### Example usage
+#### Example usage
 
 Let's say we want to recognize dishes, ingredients and cooking equipment from some text we obtained from a cooking subreddit.
 We'll send the text to GPT-3, hosted by OpenAI, and provide an annotation prompt to explain
@@ -115,7 +119,7 @@ that are sent to the OpenAI API as part of the prompt.
 > come into effect sooner, but this might negatively impact the speed of the
 > annotation workflow.
 
-## `ner.openai.fetch`: Fetch examples up-front
+### `ner.openai.fetch`: Fetch examples up-front
 
 The `ner.openai.correct` recipe fetches examples from OpenAI while annotating, but we've also included a recipe that can fetch a large batch of examples upfront.
 
@@ -128,7 +132,7 @@ This will create a `predictions.jsonl` file that can be loaded with the [`ner.ma
 Note that the OpenAI API might return "429 Too Many Request" errors when requesting too much data at once - in this case it's best to ensure you only request
 100 or so examples at a time.
 
-## Exporting the annotations and training an NER model
+### Exporting the annotations and training an NER model
 
 After you've curated a set of predictions, you can export the results with [`db-out`](https://prodi.gy/docs/recipes#db-out):
 
@@ -163,7 +167,9 @@ python ./scripts/train_hf_ner.py ./data/annotations/train.spacy ./data/annotatio
 
 The resulting model will be saved to the `hf-ner-model/` directory.
 
-## `textcat.openai.correct`: Textcat annotation with zero- or few-shot learning
+## 📋 Text categorization (Textcat)
+
+### `textcat.openai.correct`: Textcat annotation with zero- or few-shot learning
 
 This recipe enables us to classify texts faster with the help of a large
 language model. It also provides a "reason" to explain why a particular label
@@ -189,7 +195,7 @@ python -m prodigy textcat.openai.correct dataset filepath labels [--options] -F 
 | `--verbose`, `-v`           | bool | Flag to print extra information to the terminal.                                                                                                | `False`                             |
 
 
-### Example usage
+#### Example usage
 
 The `textcat` recipes can be used for binary, multiclass, and multilabel text
 categorization. You can set this by passing the appropriate number of labels in
@@ -197,7 +203,7 @@ the `--labels` parameter; for example, passing a single label turns it into
 binary classification and so on. We will talk about each one in the proceeding
 sections.
 
-#### Binary text categorization
+##### Binary text categorization
 
 Suppose we want to know if a particular Reddit comment talks about a food
 recipe.  We'll send the text to GPT-3 and provide a prompt that instructs the
@@ -231,7 +237,7 @@ python -m prodigy textcat.openai.correct my_textcat_data data/reddit_r_cooking_s
 <img src="https://user-images.githubusercontent.com/12949683/214230166-ee492fe5-04da-4b93-9590-b5ef23ce488d.png" width="600"/>
 
 
-#### Multilabel and multiclass text categorization
+##### Multilabel and multiclass text categorization
 
 Now, suppose we want to classify Reddit comments as a recipe, a feedback, or a
 question. We can write the following prompt: 
@@ -306,7 +312,7 @@ Onece you hit the <kbd>accept</kbd> button on the Prodigy interface, the flagged
 > come into effect sooner, but this might negatively impact the speed of the
 > annotation workflow.
 
-## `textcat.openai.fetch`: Fetch text categorization examples up-front
+### `textcat.openai.fetch`: Fetch text categorization examples up-front
 
 The `textcat.openai.fetch` recipe allows us to fetch a large batch of examples
 upfront. This is helpful when you are with a highly-imbalanced data and interested
@@ -326,7 +332,7 @@ requesting too much data at once - in this case it's best to ensure you only
 request 100 or so examples at a time and take a look at the [API's rate
 limits](https://help.openai.com/en/articles/5955598-is-api-usage-subject-to-any-rate-limits).
 
-### Working with imbalanced data
+#### Working with imbalanced data
 
 The `textcat.openai.fetch` recipe is suitable for working with datasets where
 there is severe class imbalance. Usually, you'd want to find examples of the
@@ -345,7 +351,7 @@ Ideally, once we fully annotated the dataset, we can train a supervised model
 that is better to use than relying on zero-shot predictions for production. The
 running cost is low and it's easier to manage.
 
-## Exporting the annotations and training a text categorization model
+### Exporting the annotations and training a text categorization model
 
 After you've curated a set of predictions, you can export the results with
 [`db-out`](https://prodi.gy/docs/recipes#db-out):
@@ -380,6 +386,6 @@ python -m spacy train ./data/annotations/config.cfg --paths.train ./data/annotat
 
 This will save a model to the `textcat-model/` directory.
 
-## What's next?
+## ❓ What's next?
 
 There’s lots of interesting follow-up experiments to this, and lots of ways to adapt the basic idea to different tasks or data sets. We’re also interested to try out different prompts. It’s unclear how much the format the annotations are requested in might change the model’s predictions, or whether there’s a shorter prompt that might perform just as well. We also want to run some end-to-end experiments.
