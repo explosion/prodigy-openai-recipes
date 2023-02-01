@@ -50,7 +50,7 @@ class TextCatPromptExample(PromptExample):
     reason: str
 
     @classmethod
-    def from_prodigy(cls, example: Dict, labels: Iterable[str]) -> "PromptExample":
+    def from_prodigy(cls, example: Dict, labels: List[str]) -> "PromptExample":
         """Create a prompt example from Prodigy's format."""
         if "text" not in example:
             raise ValueError("Cannot make PromptExample without text")
@@ -58,9 +58,9 @@ class TextCatPromptExample(PromptExample):
         full_text = example["text"]
         reason = example["meta"].get("reason")
         if len(labels) == 1:
-            answer = example.get("answer")
+            answer = example.get("answer", "reject")
         else:
-            answer = ",".join(example.get("accept"))
+            answer = ",".join(example.get("accept", []))
         return cls(text=full_text, answer=answer, reason=reason)
 
 
@@ -129,7 +129,7 @@ def make_textcat_response_parser(labels: List[str]) -> Callable:
 def textcat_openai_correct(
     dataset: str,
     filepath: Path,
-    labels: List[str] = None,
+    labels: List[str],
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
@@ -142,8 +142,6 @@ def textcat_openai_correct(
 ):
     api_key, api_org = get_api_credentials(model)
     examples = read_prompt_examples(examples_path, example_class=TextCatPromptExample)
-    if labels is None:
-        msg.fail("textcat.teach requires at least one --label", exits=1)
     nlp = spacy.blank(lang)
 
     if segment:
@@ -229,7 +227,7 @@ def textcat_openai_correct(
 def textcat_openai_fetch(
     filepath: Path,
     output_path: Path,
-    labels: List[str] = None,
+    labels: List[str],
     lang: str = "en",
     model: str = "text-davinci-003",
     batch_size: int = 10,
@@ -242,8 +240,6 @@ def textcat_openai_fetch(
 ):
     api_key, api_org = get_api_credentials(model)
     examples = read_prompt_examples(examples_path, example_class=TextCatPromptExample)
-    if labels is None:
-        msg.fail("textcat.teach requires at least one --label", exits=1)
     nlp = spacy.blank(lang)
 
     if segment:

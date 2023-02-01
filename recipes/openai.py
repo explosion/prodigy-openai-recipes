@@ -106,7 +106,7 @@ class OpenAISuggester:
     prompt_example_class: PromptExample
 
     OPENAI_COMPLETIONS_ENDPOINT: str = "https://api.openai.com/v1/completions"
-    RETRY_ERROR_CODES: List[str] = [429, 503]
+    RETRY_ERROR_CODES: List[int] = [429, 503]
 
     def __init__(
         self,
@@ -229,7 +229,7 @@ class OpenAISuggester:
 
     def _get_prompt(
         self, text: str, labels: List[str], examples: List[PromptExample]
-    ) -> List[str]:
+    ) -> str:
         """Generate a prompt for ChatGPT OpenAI."""
         return self.prompt_template.render(
             text=text, labels=labels, examples=examples, **self.render_vars
