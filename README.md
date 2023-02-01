@@ -228,7 +228,7 @@ mark) button if it is a negative example.
 
 
 ```sh
-python -m prodigy textcat.openai.correct my_textcat_data data/reddit_r_cooking_sample.jsonl --labels recipe -F recipes/openai_textcat.py
+python -m prodigy textcat.openai.correct my_binary_textcat_data data/reddit_r_cooking_sample.jsonl --labels recipe -F recipes/openai_textcat.py
 ```
 
 <img src="https://user-images.githubusercontent.com/12949683/214230166-ee492fe5-04da-4b93-9590-b5ef23ce488d.png" width="600"/>
@@ -255,7 +255,7 @@ passing the three labels to the `--labels` parameter. We should also set the
 `--exclusive-classes` flag to render a single-choice UI:
 
 ```sh
-python -m prodigy textcat.openai.correct my_textcat_data data/reddit_r_cooking_sample.jsonl \
+python -m prodigy textcat.openai.correct my_multi_textcat_data data/reddit_r_cooking_sample.jsonl \
     --labels recipe,feedback,question \
     --exclusive-classes \
     -F recipes/openai_textcat.py
@@ -272,7 +272,7 @@ to the recipe with the `--prompt-path` or `-p` option.  Additionally, with
 that contains additional examples:
 
 ```bash
-python -m prodigy textcat.openai.correct my_textcat_data \
+python -m prodigy textcat.openai.correct my_binary_textcat_data \
     ./data/reddit_r_cooking_sample.jsonl \
     --labels recipe \
     --prompt-path ./templates/textcat_prompt.jinja2 \
