@@ -253,7 +253,7 @@ class OpenAISuggester:
     def parse_response(cls, text: str) -> List[Tuple[str, List[str]]]:
         """Interpret OpenAI's NER response. It's supposed to be
         a list of lines, with each line having the form:
-        Label: phrase1, phrase2, ...
+        Label: ["phrase1", "phrase2"]
 
         However, there's no guarantee that the model will give
         us well-formed output. It could say anything, it's an LM.
