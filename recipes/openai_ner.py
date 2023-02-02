@@ -5,8 +5,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import (Callable, Dict, Iterable, List, Optional, Tuple, TypeVar,
-                    cast)
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, TypeVar, cast
 
 import httpx
 import jinja2

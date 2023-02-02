@@ -1,0 +1,6 @@
+- text: "Can someone try this recipe?"
+  answer: "question"
+  reason: "It is a question about trying a recipe."
+- text: "1 cup of rice then egg and then mix them well. Should I add garlic last?"
+  answer: "question,recipe"
+  reason: "It is a question about the steps in making a fried rice."
