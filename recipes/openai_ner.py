@@ -167,6 +167,7 @@ def ner_openai_correct(
         openai_retry_timeout_s=10,
         openai_read_timeout_s=20,
         openai_n_retries=10,
+        prompt_example_class=NERPromptExample,
     )
     for eg in examples:
         openai.add_example(eg)
@@ -250,6 +251,7 @@ def ner_openai_fetch(
         openai_retry_timeout_s=10,
         openai_read_timeout_s=20,
         openai_n_retries=10,
+        prompt_example_class=NERPromptExample,
     )
     for eg in examples:
         openai.add_example(eg)

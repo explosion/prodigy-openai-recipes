@@ -1,13 +1,15 @@
-from typing import List, Callable
 from pathlib import Path
+from typing import Callable, List, Optional
 
-from recipes.openai import get_api_credentials, load_template, OpenAISuggester
+from recipes.openai import OpenAISuggester, PromptExample, get_api_credentials
+from recipes.openai import load_template
 
 
 def make_suggester(
     response_parser: Callable,
     labels: List[str],
     prompt_path: Path,
+    prompt_example_class: Optional[PromptExample] = None,
     model: str = "text-davinci-003",
     **kwargs
 ) -> OpenAISuggester:
@@ -25,4 +27,11 @@ def make_suggester(
         kwargs["segment"] = False
     if "openai_model" not in kwargs:
         kwargs["openai_model"] = "text-davinci-003"
-    return OpenAISuggester(response_parser=response_parser, labels=labels, **kwargs)
+
+    openai = OpenAISuggester(
+        response_parser=response_parser,
+        labels=labels,
+        prompt_example_class=prompt_example_class,
+        **kwargs
+    )
+    return openai
