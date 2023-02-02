@@ -82,7 +82,7 @@ You can create your own [template](templates) and provide it to the recipe with 
 Additionally, with `--examples-path` or `-e` you can set the file path of a .y(a)ml or .json file that contains additional examples:
 
 ```bash
-python -m prodigy ner.openai.correct my_ner_data ./data/reddit_r_cooking_sample.jsonl "dish,ingredient,equipment" -p ./templates/ner_prompt.jinja2 -e ./examples/input.yaml -n 2 -F ./recipes/openai_ner.py
+python -m prodigy ner.openai.correct my_ner_data ./data/reddit_r_cooking_sample.jsonl "dish,ingredient,equipment" -p ./templates/ner_prompt.jinja2 -e ./examples/ner.yaml -n 2 -F ./recipes/openai_ner.py
 ```
 
 After receiving the results from the OpenAI API, the Prodigy recipe converts the predictions into an annotation task
