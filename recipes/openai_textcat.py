@@ -63,7 +63,7 @@ class TextCatPromptExample(PromptExample):
 
 
 def make_textcat_response_parser(labels: List[str]) -> Callable:
-    def _parse_response(text: str) -> Dict:
+    def _parse_response(text: str, example: Optional[Dict] = None) -> Dict:
         response: Dict[str, str] = {}
         if text and any(k in text.lower() for k in ("answer", "reason")):
             for line in text.strip().split("\n"):

@@ -150,6 +150,7 @@ def test_one_token_per_span(
         labels=labels,
         openai_api_key="fake api key",
         openai_api_org="fake api org",
+        prompt_example_class=NERPromptExample,
     )
     prompt = suggester._get_prompt(text, labels=labels, examples=[])
     response = _get_response(text, labels, raw_spans)
