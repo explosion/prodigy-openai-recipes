@@ -497,7 +497,7 @@ When the recipe is done, you'll have a `patterns.jsonl` file that has contents t
 ...
 ```
 
-#### Known Limitations 
+### Known Limitations 
 
 OpenAI has a hard limit on the prompt size. You cannot have a prompt larger than 4079 tokens. Unfortunately
 that means that there is a limit to the size of term lists that you can generate. The recipe will report
