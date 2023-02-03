@@ -5,9 +5,12 @@ from typing import Dict, List, Tuple
 import pytest
 import spacy
 
-from recipes.openai_ner import PromptExample, _find_substrings, _load_template
+from recipes.openai import load_template
+from recipes.openai_ner import DEFAULT_PROMPT_PATH, NERPromptExample
+from recipes.openai_ner import _find_substrings
+from tests.utils import make_suggester
 
-from .utils import make_suggester
+from recipes.openai_ner import make_ner_response_parser
 
 
 def test_multiple_substrings():
@@ -37,7 +40,7 @@ def test_template_no_examples():
     labels = ["PERSON", "PLACE", "PERIOD"]
     examples = []
     path = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
-    template = _load_template(path)
+    template = load_template(path)
     prompt = template.render(text=text, labels=labels, examples=examples)
     assert (
         prompt
@@ -59,10 +62,10 @@ def test_template_two_examples():
     text = "David Bowie lived in Berlin in the 1970s."
     labels = ["PERSON", "PLACE", "PERIOD"]
     examples = [
-        PromptExample(
+        NERPromptExample(
             text="New York is a large city.", entities={"PLACE": ["New York"]}
         ),
-        PromptExample(
+        NERPromptExample(
             text="David Hasslehoff and Helena Fischer are big in Germany.",
             entities={
                 "PERSON": ["David Hasslehoff", "Helena Fischer"],
@@ -71,7 +74,7 @@ def test_template_two_examples():
         ),
     ]
     path = Path(__file__).parent.parent / "templates" / "ner_prompt.jinja2"
-    template = _load_template(path)
+    template = load_template(path)
     prompt = template.render(text=text, labels=labels, examples=examples)
     assert (
         prompt
@@ -142,9 +145,14 @@ def test_one_token_per_span(
 ):
     labels = list(sorted(set(label for label, _, _1 in raw_spans)))
     suggester = make_suggester(
-        labels=labels, openai_api_key="fake api key", openai_api_org="fake api org"
+        response_parser=make_ner_response_parser(labels=labels, lang="en"),
+        prompt_path=DEFAULT_PROMPT_PATH,
+        labels=labels,
+        openai_api_key="fake api key",
+        openai_api_org="fake api org",
+        prompt_example_class=NERPromptExample,
     )
-    prompt = suggester._get_ner_prompt(text, labels=labels, examples=[])
+    prompt = suggester._get_prompt(text, labels=labels, examples=[])
     response = _get_response(text, labels, raw_spans)
     stream = [{"text": text, "openai": {"prompt": prompt, "response": response}}]
     stream = list(suggester.format_suggestions(stream, nlp=spacy.blank("en")))
