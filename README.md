@@ -384,7 +384,7 @@ python -m spacy train ./data/annotations/config.cfg --paths.train ./data/annotat
 
 This will save a model to the `textcat-model/` directory.
 
-## Terms 
+## 📋 Terms 
 
 ### `terms.openai.fetch`: Fetch phrases and terms based on a query
 
@@ -412,7 +412,7 @@ python -m prodigy terms.openai.fetch query filepath [--options] -F ./recipes/ope
 | `--n-batch`,`-nb`     | int   | OpenAI batch size param                             | `10`                            |
 | `--max-tokens`, `-mt` | int   | Max tokens to generate per call                     | `100`                           |
 
-### Example usage
+#### Example usage
 
 Suppose you're interested in detecting skateboard tricks in text, then you might want to start
 with a term list of known tricks. You might want to start with the following query:
@@ -497,7 +497,7 @@ When the recipe is done, you'll have a `patterns.jsonl` file that has contents t
 ...
 ```
 
-### Known Limitations 
+#### Known Limitations 
 
 OpenAI has a hard limit on the prompt size. You cannot have a prompt larger than 4079 tokens. Unfortunately
 that means that there is a limit to the size of term lists that you can generate. The recipe will report
