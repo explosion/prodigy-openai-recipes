@@ -249,6 +249,7 @@ def ab_openai_prompts(
         "on_exit": stream.on_exit,
         "config": {
             "batch_size": batch_size,
+            "choice_auto_accept": True,
             "exclude_by": "input",
             "global_css": ".prodigy-content{line-height: 1.2;};"
         },
