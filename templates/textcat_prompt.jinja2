@@ -1,0 +1,40 @@
+{% if labels|length == 1 %}
+{% set label = labels[0] %}
+From the text below, determine whether or not it contains a {{ label }}. If it is
+a {{ label }}, answer "accept." If it is not a {{ label }}, answer "reject."
+{% else %}
+Classify the text below to any of the following labels: {{ labels|join(", ") }}
+{% if exclusive_classes %}
+The task is exclusive, so only choose one label from what I provided.
+{% else %}
+The task is non-exclusive, so you can provide more than one label as long as
+they're comma-delimited. For example: Label1, Label2, Label3.
+{% endif %}
+{% endif %}
+{# whitespace #}
+Your answer should only be in the following format:
+{# whitespace #}
+answer: <string>
+reason: <string>
+{# whitespace #}
+{% if examples %}
+Below are some examples (only use these as a guide):
+{# whitespace #}
+{# whitespace #}
+{% for example in examples %}
+Text:
+"""
+{{ example.text }}
+"""
+{# whitespace #}
+answer: {{ example.answer }}
+reason: {{ example.reason }}
+{% endfor %}
+{% endif %}
+{# whitespace #}
+Here is the text that needs classification
+{# whitespace #}
+Text:
+"""
+{{text}}
+"""
