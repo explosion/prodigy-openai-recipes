@@ -519,8 +519,8 @@ python -m prodigy ab.openai.prompts dataset inputs_path display_template_path pr
 | `dataset`              | str   | Prodigy dataset to save answers into                 |                      |
 | `inputs_path`          | Path  | Path to jsonl inputs                                 |                      |
 | `display_template_path`| Path  | Template for summarizing the arguments               |                      |
-| `prompt1_template_path`| Path  | Path to the first jinja2 prompt template                     |                      |
-| `prompt2_template_path`| Path  | Path to the second jinja2 prompt template                |                      |
+| `prompt1_template_path`| Path  | Path to the first jinja2 prompt template             |                      |
+| `prompt2_template_path`| Path  | Path to the second jinja2 prompt template            |                      |
 | `--model`, `-m`        | str   | GPT-3 model to use for completion                    | `"text-davinci-003"` |
 | `--batch-size`, `-b`   | int   | Batch size to send to OpenAI API                     | `10`                 |
 | `--verbose`,`-v`       | bool  | Print extra information to terminal                  | `False`              |
