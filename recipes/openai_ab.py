@@ -199,7 +199,7 @@ class OpenAIPromptAB:
     dataset=("Dataset to save answers to", "positional", None, str),
     inputs_path=("Path to jsonl inputs", "positional", None, Path),
     display_template_path=("Template for summarizing the arguments","positional", None, Path),
-    prompt1_template_path=("The first jinja2 prompt template","positional", None, Path),
+    prompt1_template_path=("Path to the first jinja2 prompt template","positional", None, Path),
     prompt2_template_path=("Path to second jinja2 prompt template","positional", None, Path),
     model=("GPT-3 model to use for responses", "option", "m", str),
     batch_size=("Batch size to send to OpenAI API", "option", "b", int),
