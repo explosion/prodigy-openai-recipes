@@ -21,7 +21,7 @@ HTML_TEMPLATE = """
 <div class="cleaned">
   {{ #label }}
     <centering>
-    <h2>OpenAI ChatGPT says: {{ meta.answer }}</h2>
+    <h2>OpenAI GPT-3 says: {{ meta.answer }}</h2>
     </centering>
   {{ /label }}
   <details>
@@ -94,7 +94,7 @@ def make_textcat_response_parser(labels: List[str]) -> Callable:
             "answer": "accept",
             "meta": {
                 "reason": response.get("reason", ""),
-                "chatgpt_answer": response.get("answer", ""),
+                "gpt_answer": response.get("answer", ""),
             },
             "accept": list(
                 filter(
@@ -152,7 +152,7 @@ def textcat_openai_correct(
         )
         exclusive_classes = True
 
-    # Create OpenAISuggester with ChatGPT parameters
+    # Create OpenAISuggester with GPT-3 parameters
     openai = OpenAISuggester(
         response_parser=make_textcat_response_parser(labels=labels),
         prompt_template=load_template(prompt_path),
@@ -250,7 +250,7 @@ def textcat_openai_fetch(
         )
         exclusive_classes = True
 
-    # Create OpenAISuggester with ChatGPT parameters
+    # Create OpenAISuggester with GPT-3 parameters
     openai = OpenAISuggester(
         response_parser=make_textcat_response_parser(labels=labels),
         prompt_template=load_template(prompt_path),
