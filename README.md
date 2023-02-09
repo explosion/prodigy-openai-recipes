@@ -301,7 +301,7 @@ the top right of the Prodigy UI:
 
 <img src="https://user-images.githubusercontent.com/12949683/214780178-96be66e4-8a02-4820-a51e-3e6040bcddc1.png" width="600"/>
 
-Onece you hit the <kbd>accept</kbd> button on the Prodigy interface, the flagged
+Once you hit the <kbd>accept</kbd> button on the Prodigy interface, the flagged
 example will be picked up and added to the few-shot examples sent to the OpenAI
 API as part of the prompt.
 
@@ -399,7 +399,7 @@ python -m prodigy terms.openai.fetch query filepath [--options] -F ./recipes/ope
 |:---------------------:|-------|-----------------------------------------------------|---------------------------------|
 | `query`               | str   | Query to send to OpenAI                             |                                 |
 | `output_path`         | Path  | Path to save the output                             |                                 |
-| `--seeds`,`-s`        | str   | One or more comma-seperated seed phrases.           | `""`                            |
+| `--seeds`,`-s`        | str   | One or more comma-separated seed phrases.           | `""`                            |
 | `--n`,`-n`            | int   | Minimum number of items to generate                 | `100`                           |
 | `--model`, `-m`       | str   | GPT-3 model to use for completion                   | `"text-davinci-003"`            |
 | `--prompt-path`, `-p` | Path  | Path to jinja2 prompt template                      | `templates/terms_prompt.jinja2` |
@@ -479,7 +479,7 @@ This generates an interface that looks like this:
 <img src="https://user-images.githubusercontent.com/1019791/212869305-58f1d087-e036-4eab-a818-df80aab68ce8.png" width="600" />
 
 You can manually accept or reject each example and when you're done annotating you can export
-the annnotated text into a patterns file via the [`terms.to-patterns`](https://prodi.gy/docs/recipes/#terms-to-patterns) recipe.
+the annotated text into a patterns file via the [`terms.to-patterns`](https://prodi.gy/docs/recipes/#terms-to-patterns) recipe.
 
 ```bash
 # Generate a `patterns.jsonl` file.
@@ -529,7 +529,7 @@ python -m prodigy ab.openai.prompts dataset inputs_path display_template_path pr
 
 #### Example usage
 
-As an example, let's try to generate humerous haikus. To do that we first need to 
+As an example, let's try to generate humorous haikus. To do that we first need to 
 construct two jinja files that represent the prompt to send to OpenAI. 
 
 ##### `templates/ab/prompt1.jinja2`
