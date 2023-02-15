@@ -388,7 +388,7 @@ This will save a model to the `textcat-model/` directory.
 
 ### `terms.openai.fetch`: Fetch phrases and terms based on a query
 
-This recipe generates terms and phrases entity predictions obtained from a large language model. These
+This recipe generates terms and phrases obtained from a large language model. These
 terms can be curated and turned into patterns files, which can help with downstream annotation tasks. 
 
 ```bash
