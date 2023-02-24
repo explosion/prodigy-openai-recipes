@@ -53,10 +53,10 @@ def normalize_label(label: str) -> str:
 
 
 class OpenAISuggester:
-    """Suggest annotations using OpenAI's ChatGPT
+    """Suggest annotations using OpenAI's GPT-3
     prompt_template (jinja2.Template): A Jinja2 template that contains the
-        prompt to send to OpenAI's ChatGPT API.
-    model (str): The ChatGPT model ID to use for completion. Check the OpenAI
+        prompt to send to OpenAI's GPT-3 API.
+    model (str): The GPT-3 model ID to use for completion. Check the OpenAI
         documentation for more information https://beta.openai.com/docs/models/overview.
     labels (List[str]): List of labels for annotation.
     max_examples (int): The maximum number of examples to stream in the Prodigy UI.
@@ -65,17 +65,17 @@ class OpenAISuggester:
     openai_api_org (str): The OpenAI API organization.
     openai_api_key (str): The OpenAI API key.
     openai_temperature (float): The temperature parameter (from 0 to 1) that controls the
-        randomness of ChatGPT's output.
-    openai_max_tokens (int): The maximum amout of tokens that ChatGPT's
+        randomness of GPT-3's output.
+    openai_max_tokens (int): The maximum amout of tokens that GPT-3's
         completion API can generate.
     openai_n (int): The number of completions to generate for each prompt.
     openai_n_retries (int): The number of retries whenever a 429 error occurs.
     openai_retry_timeout_s (int): The amount of time before attempting another request whenever we
         encounter a 429 error. Increases exponentially for each retry.
     openai_read_timeout_s (int): The amount of time to wait a response output during a request.
-    examples (List[PromptExample]): A list of examples to add to the prompt to guide ChatGPT output.
+    examples (List[PromptExample]): A list of examples to add to the prompt to guide GPT-3 output.
     response_parser (Callable[str] -> Dict): A function that accepts a string that represents
-        ChatGPT's raw response, and parses it into a dictionary that is compatible to Prodigy's
+        GPT-3's raw response, and parses it into a dictionary that is compatible to Prodigy's
         annotation interfaces.
     render_vars (Dict[str, Any]): A dictionary containing additional variables to render in the
         Jinja2 template. By default, the Jinja2 template will render the text (str), some labels (List[str]),
@@ -228,7 +228,7 @@ class OpenAISuggester:
     def _get_prompt(
         self, text: str, labels: List[str], examples: List[PromptExample]
     ) -> str:
-        """Generate a prompt for ChatGPT OpenAI."""
+        """Generate a prompt for GPT-3 OpenAI."""
         return self.prompt_template.render(
             text=text, labels=labels, examples=examples, **self.render_vars
         )

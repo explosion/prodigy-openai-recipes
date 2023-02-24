@@ -288,6 +288,7 @@ categorization, we use the
 [`choice`](https://prodi.gy/docs/api-interfaces#choice) annotation interface.
 Notice that we include the original prompt and the OpenAI response in the UI. 
 
+
 Lastly, you can use the `--verbose` or `-v` flag to show the exact prompt and
 response on the terminal. Note that because the requests to the API are batched,
 you might have to scroll back a bit to find the current prompt.
@@ -338,6 +339,7 @@ rare class rather than annotating a random sample. From there, you want to
 upsample them to train a decent model and so on.
 
 This is where large language models like OpenAI might help.
+
 Using the [Reddit r/cooking dataset](data), we prompted OpenAI to
 look for comments that resemble a food recipe. Instead of annotating 10,000
 examples, we ran `textcat.openai.fetch` and obtained 145 positive classes. Out
