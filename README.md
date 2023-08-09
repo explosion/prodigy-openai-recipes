@@ -1,5 +1,11 @@
 <a href="https://explosion.ai"><img src="https://explosion.ai/assets/img/logo.svg" width="125" height="125" align="right" /></a>
 
+## Archival notice 
+
+The recipes in this repository have since moved to [Prodigy](https://prodi.gy/) and are being maintained there. You
+can learn more by checking out the [large language models section](https://prodi.gy/docs/large-language-models) 
+on the docs. 
+
 # Prodigy OpenAI recipes
 
 This repository contains example code on how to combine **zero- and few-shot learning
