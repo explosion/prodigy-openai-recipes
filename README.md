@@ -2,9 +2,9 @@
 
 ## Archival notice 
 
-The recipes in this repository have since moved to [Prodigy](https://prodi.gy/) and are being maintained there. You
-can learn more by checking out the [large language models section](https://prodi.gy/docs/large-language-models) 
-on the docs. 
+The recipes in this repository have since moved to [Prodigy](https://prodi.gy/) and are being maintained there. They will soon even get an upgrade with the advent of [spacy-llm](https://github.com/explosion/spacy-llm) support, which features better prompts and multiple LLM providers. That is why we've opted to archive this repo, so that we may focus on maintaining these recipes as part of spaCy and Prodigy directly.
+
+You can learn more by checking out the [large language models section](https://prodi.gy/docs/large-language-models) on the docs.
 
 # Prodigy OpenAI recipes
 
